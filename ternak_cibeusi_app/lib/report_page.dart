@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'database/database_helper.dart';
 import 'asset_model.dart';
 import 'accounting/models.dart';
+import 'accounting/calk.dart';
 import 'accounting/repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -36,6 +37,7 @@ class _ReportPageState extends State<ReportPage> {
   String _ownerName = "Nama Peternak";
 
   late Report _r;
+  List<CalkSection> _calk = [];
 
   /// Posisi Keuangan sehari sebelum _from (saldo awal ekuitas).
   Report? _awal;
@@ -95,6 +97,7 @@ class _ReportPageState extends State<ReportPage> {
     String name = prefs.getString('owner_name') ?? "Nama Peternak";
 
     final laporan = await AccountingRepository.instance.loadReport(asOf: _asOf, from: _from);
+    final calk = await AccountingRepository.instance.loadCalk(asOf: _asOf, from: _from, namaUsaha: name);
     final assets = await _dbHelper.readAllAssets();
 
     if (mounted) {
@@ -102,6 +105,7 @@ class _ReportPageState extends State<ReportPage> {
         _ownerName = name;
         _r = laporan.report;
         _awal = laporan.opening;
+        _calk = calk;
         _operationalAssets = assets.where((a) => a.kategori == 'Operasional Habis Pakai').toList();
         _isLoading = false;
       });
@@ -233,19 +237,19 @@ class _ReportPageState extends State<ReportPage> {
 
   Widget _buildFinanceSection() {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(
         children: [
           Container(
             color: Colors.white,
             child: TabBar(
               labelColor: polbanBlue, unselectedLabelColor: Colors.grey, indicatorColor: polbanOrange, labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-              tabs: const [Tab(text: "LABA RUGI"), Tab(text: "MODAL"), Tab(text: "NERACA")],
+              tabs: const [Tab(text: "LABA RUGI"), Tab(text: "MODAL"), Tab(text: "NERACA"), Tab(text: "CALK")],
             ),
           ),
           _peringatan(),
           Expanded(
-            child: TabBarView(children: [_tabLabaRugi(), _tabModal(), _tabNeraca()]),
+            child: TabBarView(children: [_tabLabaRugi(), _tabModal(), _tabNeraca(), _tabCalk()]),
           )
         ],
       ),
@@ -333,6 +337,53 @@ class _ReportPageState extends State<ReportPage> {
         ],
       ),
     );
+  }
+
+  // --- TAB CALK (Catatan atas Laporan Keuangan, dibuat otomatis dari data) ---
+  Widget _tabCalk() {
+    return _excelScaffold(
+      onPrint: _printCalkPDF,
+      title: "Catatan atas Laporan Keuangan",
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _excelHeader(_ownerName, "Catatan atas Laporan Keuangan", _teksPeriode),
+          const SizedBox(height: 20),
+          for (final s in _calk) ...[
+            _boldText(s.judul),
+            for (final p in s.paragraf)
+              Padding(padding: const EdgeInsets.only(left: 20, bottom: 6), child: Text(p, textAlign: TextAlign.justify)),
+            for (final r in s.rincian) ...[
+              _excelRow(r.label, r.nilai),
+              if (r.keterangan != null)
+                Padding(padding: const EdgeInsets.only(left: 30, bottom: 4), child: Text(r.keterangan!, style: const TextStyle(fontSize: 11, color: Colors.grey))),
+            ],
+            const SizedBox(height: 14),
+          ],
+          const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printCalkPDF() async {
+    final pdf = pw.Document();
+    pdf.addPage(pw.MultiPage(build: (ctx) => [
+      _pdfHeaderBox("Catatan atas Laporan Keuangan", _teksPeriode),
+      pw.SizedBox(height: 15),
+      for (final s in _calk) ...[
+        _pdfBold(s.judul),
+        for (final p in s.paragraf)
+          pw.Padding(padding: const pw.EdgeInsets.only(left: 20, bottom: 4), child: pw.Text(p, textAlign: pw.TextAlign.justify)),
+        for (final r in s.rincian) ...[
+          _pdfRow(r.label, r.nilai),
+          if (r.keterangan != null)
+            pw.Padding(padding: const pw.EdgeInsets.only(left: 30, bottom: 2), child: pw.Text(r.keterangan!, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey))),
+        ],
+        pw.SizedBox(height: 10),
+      ],
+    ]));
+    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
   // --- WIDGET HELPER ---

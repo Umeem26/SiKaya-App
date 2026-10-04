@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../transaction_model.dart';
+import 'calk.dart';
 import 'engine.dart';
 import 'models.dart';
 import 'tx_form_spec.dart';
@@ -191,6 +192,24 @@ class AccountingRepository {
           ? null
           : buildReport(input.txs, input.assets,
               asOf: DateTime(from.year, from.month, from.day - 1)),
+    );
+  }
+
+  /// CaLK periode yang sama dengan [loadReport].
+  Future<List<CalkSection>> loadCalk({
+    required DateTime asOf,
+    DateTime? from,
+    String namaUsaha = 'Usaha peternakan',
+  }) async {
+    final input = buildEngineInput(await transactions(), await fixedAssets());
+    return buildCalk(
+      txs: input.txs,
+      assets: input.assets,
+      report: buildReport(input.txs, input.assets, asOf: asOf, from: from),
+      asOf: asOf,
+      from: from,
+      lockedUntil: await lockedUntil(),
+      namaUsaha: namaUsaha,
     );
   }
 
