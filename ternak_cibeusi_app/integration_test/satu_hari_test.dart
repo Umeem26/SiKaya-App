@@ -15,6 +15,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ternak_cibeusi_app/accounting/repository.dart';
+import 'package:ternak_cibeusi_app/aset_data.dart';
 import 'package:ternak_cibeusi_app/beranda_page.dart';
 import 'package:ternak_cibeusi_app/database/database_helper.dart';
 import 'package:ternak_cibeusi_app/detail_catatan_page.dart';
@@ -148,6 +149,29 @@ void main() {
     await hurufSistem(tester, '2.0');
     await foto(tester, 'beranda-huruf-besar');
     await hurufSistem(tester, '1.0');
+
+    // --- 4b. Aset: ringkasan di Beranda dan tab Aset = data mesin yang sama ---
+    final aset = await muatDataAset(repo, hariIni: hariIni);
+    expect(aset.nilaiBukuAsetTetap, r.asetTetapNeto);
+    expect(aset.nilaiPersediaan, r.persediaanTotal);
+    expect(aset.jumlahTernak, 30); // 1000 bibit - 950 keluar dijual - 20 mati
+    await cekKartu(tester, 'Kandang & peralatan', rupiah(aset.nilaiBukuAsetTetap));
+    await cekKartu(tester, 'Nilai stok', rupiah(aset.nilaiPersediaan));
+    await cekKartu(tester, 'Jumlah ternak', '30 ekor');
+    await gulirKe(tester, find.text('Aset & stok'));
+    await foto(tester, 'beranda-aset');
+    await keTab(tester, 'Aset');
+    await cekKartu(tester, 'Nilai aset & stok', rupiah(aset.nilaiBukuAsetTetap + aset.nilaiPersediaan));
+    await gulirKe(tester, find.text('Kandang panggung bambu'));
+    await keAtas(tester);
+    await foto(tester, 'aset');
+    await ketuk(tester, find.text('Kandang panggung bambu'));
+    await gulirKe(tester, find.text('Riwayat penyusutan'));
+    expect(find.text('Okt 2026'), findsOneWidget);
+    await keAtas(tester);
+    await foto(tester, 'detail-aset');
+    await tester.pageBack();
+    await tenang(tester);
 
     await keTab(tester, 'Catat');
     await gulirKe(tester, find.text('Jual, dibayar tunai'));

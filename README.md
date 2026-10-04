@@ -14,9 +14,9 @@ The primary users are older farmers using low-end Android phones outdoors, so th
 | :---: | :---: | :---: | :---: |
 | <img src="docs/screenshots/laporan-ringkasan.png" width="200" /> | <img src="docs/screenshots/laporan-posisi-keuangan.png" width="200" /> | <img src="docs/screenshots/calk.png" width="200" /> | <img src="docs/screenshots/lainnya.png" width="200" /> |
 
-| Home at the largest system font (200%) |
-| :---: |
-| <img src="docs/screenshots/beranda-huruf-besar.png" width="200" /> |
+| Assets & stock | Fixed asset with depreciation history | Splash | Home at the largest system font (200%) |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/aset.png" width="200" /> | <img src="docs/screenshots/detail-aset.png" width="200" /> | <img src="docs/screenshots/splash.png" width="200" /> | <img src="docs/screenshots/beranda-huruf-besar.png" width="200" /> |
 
 Screenshots and the short screen recording ([docs/demo-flow.mp4](docs/demo-flow.mp4): record a sale, Home updates) were captured automatically on an Android emulator by the integration test. **All data shown is fictional demo data** ("Peternakan Contoh Sukamaju"); it exists only in `integration_test/`, not in the app build.
 
@@ -25,6 +25,7 @@ Screenshots and the short screen recording ([docs/demo-flow.mp4](docs/demo-flow.
 - **Record events, not journal entries.** A "What happened?" screen groups 14 transaction types a farmer records (sell for cash or on credit, collect a receivable, buy feed/medicine/chicks for cash or on credit, use stock, livestock deaths, operating expenses, fixed assets, owner capital and drawings, loans, principal and interest payments) plus partial returns/reversals; depreciation and closing entries are generated automatically. Each form is rendered from a single spec table that also holds the validation rules.
 - **Home** shows money in, money out, profit or loss for the month and cash on hand, with warnings for records that need checking and for an unbalanced report.
 - **Records** history grouped by month, with labelled Edit and Delete buttons.
+- **Assets** tab: fixed assets with photo, cost, book value, remaining useful life and the monthly depreciation history from the engine; feed/medicine/livestock stock with quantity, value and a low-stock warning. Home shows the same asset summary. The visual review (before/after, three review rounds) is in [docs/UI-REVIEW.md](docs/UI-REVIEW.md).
 - **Two-layer reports.** A plain-language summary (money in/out, profit, stock value, fixed assets, payables, receivables), then formal statements: Statement of Financial Position, Income Statement, Statement of Changes in Equity and auto-generated Notes to the Financial Statements (CaLK). One combined PDF export.
 - **Period closing** is non-destructive: the database is backed up, the period's profit is posted to retained earnings, and records up to the closing date are locked (corrections go through dated reversals).
 - **Backup and restore** of the whole database file (with a weekly reminder), CSV export for Excel, a separate non-financial inventory list.
