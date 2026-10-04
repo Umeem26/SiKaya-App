@@ -41,3 +41,8 @@ lib/generated_plugin_registrant.dart
 **/android/gradlew.bat
 **/android/local.properties
 **/android/key.properties
+
+# Kunci penandatanganan rilis (jangan pernah di-commit)
+key.properties
+*.jks
+*.keystore
