@@ -77,7 +77,9 @@ class _FormFinancePageState extends State<FormFinancePage> {
       if (kind == FieldKind.uang || kind == FieldKind.jumlah || kind == FieldKind.teks) {
         final v = _values[f.key];
         _ctl[f.key] = TextEditingController(
-            text: v == null ? '' : (kind == FieldKind.uang ? _ribuan(v as int) : '$v'));
+            text: v == null || (kind != FieldKind.teks && v is! int)
+                ? '' // kosong atau nilai khusus (mis. tidak disusutkan)
+                : (kind == FieldKind.uang ? _ribuan(v as int) : '$v'));
       }
     }
   }
@@ -235,8 +237,11 @@ class _FormFinancePageState extends State<FormFinancePage> {
       case FieldKind.uang:
       case FieldKind.jumlah:
         final uang = f.key.kind == FieldKind.uang;
-        return TextField(
+        int? angka() => int.tryParse(_ctl[f.key]!.text.replaceAll('.', ''));
+        final khusus = f.pilihan.any((p) => p.value == _values[f.key]);
+        final input = TextField(
           controller: _ctl[f.key],
+          enabled: !khusus,
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -244,8 +249,21 @@ class _FormFinancePageState extends State<FormFinancePage> {
             if (uang) _RibuanFormatter(),
           ],
           decoration: _dec(f).copyWith(prefixText: uang ? 'Rp ' : null),
-          onChanged: (s) => _values[f.key] = int.tryParse(s.replaceAll('.', '')),
+          onChanged: (s) => _values[f.key] = angka(),
         );
+        if (f.pilihan.isEmpty) return input;
+        // Nilai khusus pengganti angka (umur manfaat: tidak disusutkan/tanah).
+        return Column(children: [
+          input,
+          for (final p in f.pilihan)
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(p.label),
+              value: _values[f.key] == p.value,
+              onChanged: (c) => setState(() => _values[f.key] = c == true ? p.value : angka()),
+            ),
+        ]);
       case FieldKind.teks:
         return TextField(
           controller: _ctl[f.key],

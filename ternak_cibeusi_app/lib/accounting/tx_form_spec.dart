@@ -30,6 +30,12 @@ enum FieldKey {
   final FieldKind kind;
 }
 
+/// Nilai khusus pengganti angka untuk field umurBulan.
+enum UmurManfaat {
+  /// Aset tidak disusutkan (tanah, SAK EMKM): lifeMonths = null.
+  tidakDisusutkan,
+}
+
 class Pilihan {
   const Pilihan(this.value, this.label);
   final Object value;
@@ -85,7 +91,9 @@ class FieldSpec {
   final bool wajib;
   final String? hint;
 
-  /// Pilihan tetap untuk FieldKind.pilihan. Rujukan diisi dari data (FormInput.rujukan).
+  /// Pilihan tetap untuk FieldKind.pilihan. Untuk FieldKind.jumlah: nilai khusus
+  /// pengganti angka (mis. UmurManfaat.tidakDisusutkan). Rujukan diisi dari data
+  /// (FormInput.rujukan).
   final List<Pilihan> pilihan;
 
   /// Dijalankan berurutan bila field terisi; pesan pertama yang bukan null dipakai.
@@ -284,8 +292,9 @@ const Map<TxType, TxTypeFormSpec> txFormSpecs = {
   ),
   TxType.beliAsetTetap: TxTypeFormSpec(
     type: TxType.beliAsetTetap,
-    label: 'Beli kandang/peralatan/kendaraan',
-    penjelasan: 'Barang tahan lama; nilainya disusutkan otomatis setiap bulan',
+    label: 'Beli kandang/peralatan/kendaraan/tanah',
+    penjelasan: 'Barang tahan lama; nilainya disusutkan otomatis setiap bulan. '
+        'Tanah tidak disusutkan.',
     fields: [
       FieldSpec(FieldKey.namaAset, 'Nama aset'),
       _tanggal,
@@ -294,7 +303,9 @@ const Map<TxType, TxTypeFormSpec> txFormSpecs = {
       FieldSpec(FieldKey.tanggalSiapPakai, 'Tanggal mulai dipakai',
           wajib: false, hint: 'Kosong = sama dengan tanggal beli', validasi: [_tanggalSah, _tidakSebelumBeli]),
       FieldSpec(FieldKey.umurBulan, 'Umur manfaat (bulan)',
-          hint: 'Mis. peralatan kecil 48, kandang semi permanen 120, kendaraan 96',
+          hint: 'Mis. peralatan kecil 48, kandang semi permanen 120, kendaraan 96. '
+              'Tanah: pilih "Tidak disusutkan"',
+          pilihan: [Pilihan(UmurManfaat.tidakDisusutkan, 'Tidak disusutkan (tanah)')],
           validasi: [_bulatPositif, _umurWajar]),
       _keterangan,
     ],
@@ -386,6 +397,7 @@ Map<FieldKey, String> validateForm(TxTypeFormSpec spec, FormInput input) {
       errors[f.key] = 'Pilihan tidak dikenal';
       continue;
     }
+    if (f.key.kind == FieldKind.jumlah && f.pilihan.any((p) => p.value == v)) continue;
     for (final cek in f.validasi) {
       final pesan = cek(v, input);
       if (pesan != null) {
@@ -425,7 +437,7 @@ TxDraft buildDraft(TxTypeFormSpec spec, FormInput input, {int? id}) {
       : FixedAssetModel(
           name: (v(FieldKey.namaAset) as String).trim(),
           readyDate: v(FieldKey.tanggalSiapPakai) as String?,
-          lifeMonths: v(FieldKey.umurBulan) as int?,
+          lifeMonths: switch (v(FieldKey.umurBulan)) { final int n => n, _ => null },
         );
   return TxDraft(tx, asset: asset);
 }
@@ -444,7 +456,7 @@ Map<FieldKey, Object?> valuesFrom(TransactionModel t, {FixedAssetModel? asset}) 
       if (asset != null) ...{
         FieldKey.namaAset: asset.name,
         FieldKey.tanggalSiapPakai: asset.readyDate,
-        FieldKey.umurBulan: asset.lifeMonths,
+        FieldKey.umurBulan: asset.lifeMonths ?? UmurManfaat.tidakDisusutkan,
       },
     };
 
