@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'accounting/engine.dart' show roundHalfAwayFromZero;
 import 'accounting/models.dart' show PeriodLockedException;
 import 'accounting/repository.dart';
-import 'accounting/tx_form_spec.dart' show labelTransaksi, pesanPeriodeTerkunci;
+import 'accounting/tx_form_spec.dart' show hapusIkutAset, labelTransaksi, pesanHapus, pesanPeriodeTerkunci;
 import 'transaction_model.dart';
 import 'form_finance_page.dart';
 
@@ -66,13 +66,16 @@ class _ListFinancePageState extends State<ListFinancePage> {
 
   String _label(TransactionModel t) => labelTransaksi(t);
 
-  void _showDeleteDialog(TransactionModel item) {
+  void _showDeleteDialog(TransactionModel item) async {
+    final ikutAset = hapusIkutAset(item);
+    final aset = ikutAset ? await _repo.fixedAssetById(item.assetId!) : null;
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: const Text("Hapus Transaksi?"),
-        content: Text("Yakin ingin menghapus ${_label(item)}?"),
+        title: Text(ikutAset ? "Hapus Transaksi dan Aset Tetap?" : "Hapus Transaksi?"),
+        content: Text(pesanHapus(item, aset: aset)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal", style: TextStyle(color: Colors.grey))),
           ElevatedButton(

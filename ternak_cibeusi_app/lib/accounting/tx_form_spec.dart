@@ -497,6 +497,20 @@ Map<FieldKey, Object?> valuesFrom(TransactionModel t, {FixedAssetModel? asset}) 
   return (piutang: piutang, retur: retur);
 }
 
+/// Hapus beli_aset_tetap (bukan retur) ikut menghapus aset tetapnya (repository.deleteTransaction).
+bool hapusIkutAset(TransactionModel t) =>
+    t.txType == TxType.beliAsetTetap && t.reversalOf == null && t.assetId != null;
+
+/// Teks dialog konfirmasi hapus transaksi.
+String pesanHapus(TransactionModel t, {FixedAssetModel? aset}) {
+  final dasar = 'Yakin ingin menghapus ${labelTransaksi(t)} ${formatRupiah(t.amount)} (${t.date})?';
+  if (!hapusIkutAset(t)) return dasar;
+  final nama = aset == null ? '#${t.assetId}' : '"${aset.name}"';
+  return '$dasar\n\nAset tetap $nama IKUT TERHAPUS: harga perolehan dan penyusutannya '
+      'hilang dari Laporan Posisi Keuangan dan Laba Rugi. '
+      'Bila hanya salah catat harga/tanggal/umur, ubah transaksinya saja.';
+}
+
 /// Pesan untuk pengguna saat menulis ke periode yang sudah ditutup buku.
 String pesanPeriodeTerkunci(PeriodLockedException e) {
   final kunci = _fmtTanggal.format(e.lockedUntil);
