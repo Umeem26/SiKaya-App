@@ -55,7 +55,7 @@ Future<int> nilaiBaris(WidgetTester tester, String label) async {
 }
 
 Future<void> bukaTab(WidgetTester tester, String judul) async {
-  await ketuk(tester, find.descendant(of: find.byType(TombolPilihanPeriode), matching: find.text(judul)));
+  await ketuk(tester, find.descendant(of: find.byType(TombolPilihan), matching: find.text(judul)));
 }
 
 void main() {
@@ -108,7 +108,7 @@ void main() {
       for (final MapEntry(key: tab, value: teks) in isi.entries) {
         await bukaTab(tester, tab);
         final tombol = find.ancestor(
-            of: find.descendant(of: find.byType(TombolPilihanPeriode), matching: find.text(tab)),
+            of: find.descendant(of: find.byType(TombolPilihan), matching: find.text(tab)),
             matching: find.byWidgetPredicate((w) => w is ButtonStyleButton));
         expect(tester.getSize(tombol).height, greaterThanOrEqualTo(48), reason: 'pilihan $tab');
         dalamLebar(tester, tombol);

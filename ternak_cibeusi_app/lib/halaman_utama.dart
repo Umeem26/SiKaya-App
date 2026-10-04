@@ -55,7 +55,7 @@ class _HalamanUtamaState extends State<HalamanUtama> {
         ),
       1 => ListFinancePage(repo: widget.repo, hariIni: widget.hariIni),
       2 => ReportPage(repo: widget.repo, hariIni: widget.hariIni),
-      _ => const LainnyaPage(),
+      _ => LainnyaPage(repo: widget.repo, hariIni: widget.hariIni),
     };
     return Scaffold(
       body: halaman,

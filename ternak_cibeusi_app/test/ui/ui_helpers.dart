@@ -35,7 +35,7 @@ Future<void> pasangDitumpuk(WidgetTester tester, Widget halaman, {double skala =
 }
 
 /// DB in-memory tanpa isolate: selesai di dalam testWidgets (fake async).
-Future<AccountingRepository> repoUji() async {
+Future<Database> dbUji() async {
   sqfliteFfiInit();
   final db = await databaseFactoryFfiNoIsolate.openDatabase(
     inMemoryDatabasePath,
@@ -48,6 +48,11 @@ Future<AccountingRepository> repoUji() async {
     ),
   );
   addTearDown(db.close);
+  return db;
+}
+
+Future<AccountingRepository> repoUji() async {
+  final db = await dbUji();
   return AccountingRepository(() async => db);
 }
 

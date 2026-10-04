@@ -10,7 +10,6 @@ import 'package:printing/printing.dart';
 import 'accounting/calk.dart';
 import 'laporan_data.dart';
 import 'laporan_pdf.dart';
-import 'report_page.dart' show TombolPilihanPeriode;
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
 
@@ -54,7 +53,7 @@ class _LaporanResmiPageState extends State<LaporanResmiPage> {
       runSpacing: 8,
       children: [
         for (var i = 0; i < judulTabResmi.length; i++)
-          TombolPilihanPeriode(
+          TombolPilihan(
             label: judulTabResmi[i],
             terpilih: i == _tab,
             ikon: Icons.description_outlined,

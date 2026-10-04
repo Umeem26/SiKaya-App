@@ -86,16 +86,17 @@ Baseline 67 isu = `flutter analyze` pada commit d1e4fc5 (awal Fase 1). 18 sudah 
 | form_finance_page.dart | 3 (2 deprecated, 1 super-parameter) | Catat | S2 | sudah 0 |
 | list_finance_page.dart | 5 (4 withOpacity, 1 super-parameter) | Riwayat | S2 | sudah 0 |
 | report_page.dart | 2 (1 withOpacity, 1 super-parameter) | Laporan dua lapis | S3 | sudah 0 |
-| settings_page.dart | 8 (5 withOpacity, 2 context sesudah await, 1 super-parameter) | Lainnya | S4 | sudah 0 |
-| form_asset_page.dart | 20 (10 if tanpa kurung, 7 `value`→`initialValue`, 2 withOpacity, 1 super-parameter) | Inventaris: form | S4 | sisa |
-| detail_asset_page.dart | 5 (4 withOpacity, 1 super-parameter) | Inventaris: detail | S4 | sisa |
-| list_asset_page.dart | 4 (3 withOpacity, 1 super-parameter) | Inventaris: daftar | S4 | sisa |
+| settings_page.dart | 8 (5 withOpacity, 2 context sesudah await, 1 super-parameter) | Lainnya (file dihapus, isinya pindah ke lainnya_page.dart) | S4 | sudah 0 |
+| form_asset_page.dart | 20 (10 if tanpa kurung, 7 `value`→`initialValue`, 2 withOpacity, 1 super-parameter) | Inventaris: form | S4 | sudah 0 |
+| detail_asset_page.dart | 5 (4 withOpacity, 1 super-parameter) | Inventaris: detail | S4 | sudah 0 |
+| list_asset_page.dart | 4 (3 withOpacity, 1 super-parameter) | Inventaris: daftar | S4 | sudah 0 |
 | **Jumlah** | **67** (49 sisa + 18 sudah 0) | | | target 0 sesudah S4 |
 
 Dicek ulang sesudah S2 (2026-10-04): 29 isu, semuanya di form_asset_page (20), detail_asset_page (5), list_asset_page (4) = Inventaris S4. File baru/diubah S1-S2 dan semua file tes: 0 isu.
+Sesudah S4 (2026-10-04): `flutter analyze` seluruh proyek = **0 isu** (target tercapai; tidak ada sisa).
 
 ## 9. Kemajuan (centang = terkomit, `flutter test` hijau, `flutter build apk --debug` sukses)
 - [x] S1 — tema, komponen dasar, navigasi bawah, Beranda, splash/onboarding
 - [x] S2 — "Apa yang terjadi?" berkelompok (`kelompokCatat`), form dengan `InputRupiah`/`InputTanggal`/`PilihanTunggal`, Riwayat per bulan (`list_finance_page.dart`), detail Ubah/Hapus (`detail_catatan_page.dart`), 5 catatan terakhir di Beranda (`ItemCatatan` yang sama). Tes: `test/ui/catat_test.dart`, `riwayat_test.dart`, `alur_catat_test.dart`
 - [x] S3 — Ringkasan bahasa petani (`report_page.dart`: pilihan waktu, 8 angka berpenjelasan) → Laporan resmi (`laporan_resmi_page.dart`: Posisi Keuangan, Laba Rugi, CaLK, Perubahan Ekuitas sebagai tombol pilihan yang semuanya terlihat, bukan tab geser) → satu PDF dibagikan (`laporan_pdf.dart`). Ketiganya membaca satu `DataLaporan` (`laporan_data.dart`). Toggle "Laporan Asset Tetap" lama (isinya inventaris) dihapus; inventaris ada di Lainnya. Tes: `laporan_data_test.dart` (ringkasan = resmi = CaLK = PDF), `laporan_test.dart`
-- [ ] S4 — Lainnya (cadangan, pulihkan, tutup buku, CSV), onboarding cadangan berkala, Inventaris
+- [x] S4 — Lainnya (`lainnya_page.dart`, pengganti `settings_page.dart`): Ekspor cadangan (aksi utama) + tanggal ekspor terakhir (`cadangan_terakhir` di SharedPreferences) + pengingat bila >= 7 hari, Pulihkan, Tutup buku, Ekspor CSV (kolom sama), Nama usaha, Inventaris, Zona bahaya. Onboarding 2 langkah: nama → "Simpan cadangan secara berkala". Inventaris (daftar/detail/form) memakai komponen bersama, kelompok berupa tombol (bukan tab geser), detail kini punya Hapus; data lama tetap terbaca (`inventaris_data.dart`). Tes: `lainnya_test.dart`, `onboarding_test.dart`, `inventaris_test.dart`

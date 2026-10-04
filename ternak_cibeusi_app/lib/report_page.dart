@@ -120,9 +120,10 @@ class _ReportPageState extends State<ReportPage> {
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final p in PilihanPeriode.values)
-            TombolPilihanPeriode(
+            TombolPilihan(
               label: labelPeriode[p]!,
               terpilih: p == _pilihan,
+              ikon: Icons.calendar_month,
               onPressed: () => _pilihPeriode(p),
             ),
         ]),
@@ -210,23 +211,4 @@ class _ReportPageState extends State<ReportPage> {
       ],
     );
   }
-}
-
-/// Tombol pilihan (waktu laporan, jenis laporan resmi): terisi dengan tanda centang
-/// bila terpilih, bergaris bila tidak. Arti tidak hanya lewat warna.
-class TombolPilihanPeriode extends StatelessWidget {
-  const TombolPilihanPeriode(
-      {super.key, required this.label, required this.terpilih, this.onPressed, this.ikon = Icons.calendar_month});
-  final String label;
-  final bool terpilih;
-  final VoidCallback? onPressed;
-  final IconData ikon;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        selected: terpilih,
-        child: terpilih
-            ? TombolUtama(label: label, ikon: Icons.check, lebarPenuh: false, onPressed: onPressed)
-            : TombolKedua(label: label, ikon: ikon, lebarPenuh: false, onPressed: onPressed),
-      );
 }

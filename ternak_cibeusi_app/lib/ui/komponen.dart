@@ -557,6 +557,62 @@ class _BarisPilihan extends StatelessWidget {
   }
 }
 
+/// Satu tombol pilihan (waktu laporan, jenis laporan, satuan, kondisi): terisi
+/// dengan tanda centang bila terpilih, bergaris bila tidak. Arti tidak hanya lewat warna.
+class TombolPilihan extends StatelessWidget {
+  const TombolPilihan(
+      {super.key, required this.label, required this.terpilih, this.onPressed, this.ikon = Icons.circle_outlined});
+  final String label;
+  final bool terpilih;
+  final VoidCallback? onPressed;
+
+  /// Ikon saat tidak terpilih (terpilih selalu centang).
+  final IconData ikon;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        selected: terpilih,
+        child: terpilih
+            ? TombolUtama(label: label, ikon: Icons.check, lebarPenuh: false, onPressed: onPressed)
+            : TombolKedua(label: label, ikon: ikon, lebarPenuh: false, onPressed: onPressed),
+      );
+}
+
+/// Pilihan pendek berupa deretan [TombolPilihan] yang turun baris bila tidak muat.
+/// [banyak] = boleh memilih lebih dari satu.
+class PilihanTombol<T> extends StatelessWidget {
+  const PilihanTombol({
+    super.key,
+    required this.label,
+    required this.opsi,
+    required this.terpilih,
+    required this.onPilih,
+    this.errorText,
+  });
+  final String label;
+  final List<OpsiPilihan<T>> opsi;
+  final Set<T> terpilih;
+  final ValueChanged<T> onPilih;
+  final String? errorText;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text(label, style: t.titleSmall),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final o in opsi)
+          TombolPilihan(label: o.label, terpilih: terpilih.contains(o.nilai), onPressed: () => onPilih(o.nilai)),
+      ]),
+      if (errorText != null) ...[
+        const SizedBox(height: 4),
+        Text(errorText!, style: t.bodySmall!.copyWith(color: Warna.error)),
+      ],
+    ]);
+  }
+}
+
 /// Kartu pilihan besar di layar "Apa yang terjadi?": label + penjelasan.
 /// [alasanNonaktif] bukan null = tidak bisa dipilih; alasannya tetap ditampilkan.
 class KartuPilihan extends StatelessWidget {

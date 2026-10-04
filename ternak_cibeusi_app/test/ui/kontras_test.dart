@@ -77,4 +77,20 @@ void main() {
       expect(rasioKontras(teks, latar), greaterThanOrEqualTo(4.5));
     }
   });
+
+  test('S4: pasangan yang dipakai Lainnya/Inventaris/Onboarding terdaftar dan >= 4,5:1', () {
+    final dipakai = [
+      (Warna.sukses, Warna.permukaan), // cadangan masih baru, kondisi Baik
+      (Warna.peringatan, Warna.permukaan), // cadangan lama, kondisi rusak
+      (Warna.error, Warna.latar), // judul Zona bahaya
+      (Warna.putih, Warna.error), // tombol Hapus semua data
+      (Warna.putih, Warna.primer), // nomor langkah onboarding
+      (Warna.primer, Warna.primerMuda), // banner Pengingat
+      (Warna.teks, Warna.primerMuda), // isi banner Pengingat
+    ];
+    for (final (teks, latar) in dipakai) {
+      expect(pasanganKontras.any((p) => p.$2 == teks && p.$3 == latar), isTrue, reason: '$teks/$latar belum terdaftar');
+      expect(rasioKontras(teks, latar), greaterThanOrEqualTo(4.5));
+    }
+  });
 }
