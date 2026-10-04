@@ -1,7 +1,7 @@
 // Kerangka aplikasi: navigasi bawah berlabel (UI-PLAN.md bagian 3).
-// Isi tab Catatan/Laporan/Lainnya masih layar lama (dirombak di S2-S4).
 import 'package:flutter/material.dart';
 
+import 'accounting/repository.dart';
 import 'beranda_page.dart';
 import 'lainnya_page.dart';
 import 'list_finance_page.dart';
@@ -23,10 +23,16 @@ const tujuanNavigasi = [
 ];
 
 class HalamanUtama extends StatefulWidget {
-  const HalamanUtama({super.key, this.muatBeranda});
+  const HalamanUtama({super.key, this.muatBeranda, this.repo, this.hariIni});
 
   /// Pengganti pemuat data Beranda (tes); null = data aplikasi.
   final Future<RingkasanBeranda> Function()? muatBeranda;
+
+  /// Pengganti repository aplikasi (tes); null = AccountingRepository.instance.
+  final AccountingRepository? repo;
+
+  /// Pengganti "sekarang" (tes); null = DateTime.now().
+  final DateTime? hariIni;
 
   @override
   State<HalamanUtama> createState() => _HalamanUtamaState();
@@ -41,10 +47,13 @@ class _HalamanUtamaState extends State<HalamanUtama> {
   Widget build(BuildContext context) {
     // Halaman dibuat ulang setiap pindah tab agar datanya selalu terbaru.
     final halaman = switch (_tab) {
-      0 => widget.muatBeranda == null
-          ? BerandaPage(onLihatCatatan: () => _pindah(1))
-          : BerandaPage(muat: widget.muatBeranda!, onLihatCatatan: () => _pindah(1)),
-      1 => const ListFinancePage(),
+      0 => BerandaPage(
+          muat: widget.muatBeranda,
+          repo: widget.repo,
+          hariIni: widget.hariIni,
+          onLihatCatatan: () => _pindah(1),
+        ),
+      1 => ListFinancePage(repo: widget.repo, hariIni: widget.hariIni),
       2 => const ReportPage(),
       _ => const LainnyaPage(),
     };

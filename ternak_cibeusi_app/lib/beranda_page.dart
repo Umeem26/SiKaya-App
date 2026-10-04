@@ -6,7 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'accounting/models.dart';
 import 'accounting/repository.dart';
+import 'detail_catatan_page.dart';
 import 'form_finance_page.dart';
+import 'transaction_model.dart';
+import 'ui/item_catatan.dart';
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
 
@@ -21,6 +24,7 @@ class RingkasanBeranda {
     required this.labaBersih,
     this.perluDitinjau,
     this.seimbang = true,
+    this.terakhir = const [],
   });
   final String namaUsaha;
   final DateTime dari;
@@ -37,6 +41,9 @@ class RingkasanBeranda {
   final int labaBersih;
   final ReviewWarning? perluDitinjau;
   final bool seimbang;
+
+  /// 5 catatan terbaru (urut tanggal lalu id, turun), termasuk yang perlu dicek.
+  final List<TransactionModel> terakhir;
 }
 
 /// Ringkasan bulan berjalan s.d. [hariIni]. Kas periode = buku kas per hariIni
@@ -61,30 +68,31 @@ Future<RingkasanBeranda> muatRingkasanBeranda(
     labaBersih: p.report.labaBersih,
     perluDitinjau: p.report.peringatanTinjau,
     seimbang: p.report.balanced,
+    terakhir: (await repo.transactions()).take(5).toList(),
   );
 }
 
-Future<RingkasanBeranda> _muatDariAplikasi() async {
+Future<RingkasanBeranda> muatBerandaAplikasi(AccountingRepository repo, {DateTime? hariIni}) async {
   final prefs = await SharedPreferences.getInstance();
   return muatRingkasanBeranda(
-    AccountingRepository.instance,
-    hariIni: DateTime.now(),
+    repo,
+    hariIni: hariIni ?? DateTime.now(),
     namaUsaha: prefs.getString('owner_name') ?? 'Usaha Saya',
   );
 }
 
-const _bulan = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-];
-
 String teksPeriode(DateTime dari, DateTime sampai) =>
-    'Bulan ini: ${dari.day}–${sampai.day} ${_bulan[sampai.month - 1]} ${sampai.year}';
+    'Bulan ini: ${dari.day}–${sampai.day} ${namaBulan[sampai.month - 1]} ${sampai.year}';
 
 class BerandaPage extends StatefulWidget {
-  const BerandaPage({super.key, this.muat = _muatDariAplikasi, this.onLihatCatatan});
+  const BerandaPage({super.key, this.muat, this.repo, this.hariIni, this.onLihatCatatan});
 
-  final Future<RingkasanBeranda> Function() muat;
+  /// Pemuat data (tes); null = [muatBerandaAplikasi] dari [repo].
+  final Future<RingkasanBeranda> Function()? muat;
+  final AccountingRepository? repo;
+
+  /// Pengganti "sekarang" (tes); null = DateTime.now().
+  final DateTime? hariIni;
 
   /// Pindah ke daftar catatan (tab Catatan) untuk memeriksa yang perlu dicek.
   final VoidCallback? onLihatCatatan;
@@ -94,18 +102,24 @@ class BerandaPage extends StatefulWidget {
 }
 
 class _BerandaPageState extends State<BerandaPage> {
-  late Future<RingkasanBeranda> _data = widget.muat();
+  late Future<RingkasanBeranda> _data = _muat();
+
+  Future<RingkasanBeranda> _muat() =>
+      widget.muat?.call() ??
+      muatBerandaAplikasi(widget.repo ?? AccountingRepository.instance, hariIni: widget.hariIni);
 
   void _muatUlang() {
     setState(() {
-      _data = widget.muat();
+      _data = _muat();
     });
   }
 
-  Future<void> _catat() async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => const FormFinancePage()));
+  Future<void> _buka(Widget halaman) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => halaman));
     if (mounted) _muatUlang();
   }
+
+  Future<void> _catat() => _buka(FormFinancePage(repo: widget.repo, hariIni: widget.hariIni));
 
   @override
   Widget build(BuildContext context) {
@@ -205,6 +219,19 @@ class _BerandaPageState extends State<BerandaPage> {
           ikon: Icons.account_balance_wallet_outlined,
           keterangan: 'Sisa uang tunai menurut catatan.',
         ),
+        const SizedBox(height: 24),
+        Semantics(header: true, child: Text('Catatan terakhir', style: t.titleMedium)),
+        const SizedBox(height: 8),
+        if (r.terakhir.isEmpty)
+          Text('Belum ada catatan. Tekan "Apa yang terjadi?" di bawah untuk mencatat.', style: t.bodyLarge),
+        for (final c in r.terakhir) ...[
+          ItemCatatan(catatan: c, onTap: () => _buka(DetailCatatanPage(catatan: c, repo: widget.repo))),
+          const SizedBox(height: 8),
+        ],
+        if (r.terakhir.isNotEmpty && widget.onLihatCatatan != null) ...[
+          const SizedBox(height: 4),
+          TombolKedua(label: 'Lihat semua catatan', ikon: Icons.list_alt, onPressed: widget.onLihatCatatan),
+        ],
         const SizedBox(height: 24),
       ],
     );

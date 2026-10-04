@@ -1,36 +1,70 @@
-// Form transaksi per tipe. Field, label, wajib/opsional, dan validasi berasal dari
-// tabel lib/accounting/tx_form_spec.dart; halaman ini hanya merender (Fase 1:
-// widget Material bawaan, tampilan dirombak di Fase 3).
+// Catat kejadian (UI-PLAN.md bagian 3.2): layar "Apa yang terjadi?" berkelompok,
+// lalu form satu kolom. Field, label, wajib/opsional, dan validasi berasal dari
+// tabel lib/accounting/tx_form_spec.dart; halaman ini hanya merender.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 
 import 'accounting/models.dart';
 import 'accounting/repository.dart';
 import 'accounting/tx_form_spec.dart';
 import 'transaction_model.dart';
+import 'ui/item_catatan.dart';
+import 'ui/komponen.dart';
+import 'ui/tokens.dart';
+
+class KelompokCatat {
+  const KelompokCatat(this.judul, this.pilihan);
+  final String judul;
+  final List<TxTypeFormSpec> pilihan;
+}
+
+TxTypeFormSpec _s(TxType t) => txFormSpecs[t]!;
+
+/// Urutan layar "Apa yang terjadi?". Setiap spec muncul tepat sekali; yang
+/// dicatat otomatis tetap tampil (nonaktif) beserta alasannya.
+final kelompokCatat = [
+  KelompokCatat('Jual & terima uang',
+      [_s(TxType.penjualanTunai), _s(TxType.penjualanKredit), _s(TxType.terimaPiutang)]),
+  KelompokCatat('Beli',
+      [_s(TxType.beliPersediaanTunai), _s(TxType.beliPersediaanKredit), _s(TxType.beliAsetTetap)]),
+  KelompokCatat('Pakai stok & ternak mati', [_s(TxType.pakaiPersediaan), _s(TxType.kematianTernak)]),
+  KelompokCatat('Bayar biaya', [_s(TxType.bebanOperasional), _s(TxType.bebanBunga)]),
+  KelompokCatat('Modal & pinjaman', [
+    _s(TxType.setorModal),
+    _s(TxType.prive),
+    _s(TxType.terimaPinjaman),
+    _s(TxType.bayarCicilanPokok),
+  ]),
+  const KelompokCatat('Koreksi (retur)', [returFormSpec]),
+  KelompokCatat('Dicatat otomatis', [_s(TxType.penyusutan), _s(TxType.tutupBuku)]),
+];
 
 class FormFinancePage extends StatefulWidget {
   /// null = catat baru (mulai dari layar "Apa yang terjadi?").
   final TransactionModel? transaction;
-  const FormFinancePage({super.key, this.transaction});
+  final AccountingRepository? repo;
+
+  /// Pengganti "sekarang" (tes); null = DateTime.now().
+  final DateTime? hariIni;
+  const FormFinancePage({super.key, this.transaction, this.repo, this.hariIni});
 
   @override
   State<FormFinancePage> createState() => _FormFinancePageState();
 }
 
 class _FormFinancePageState extends State<FormFinancePage> {
-  final _repo = AccountingRepository.instance;
-  final _fmtTanggal = DateFormat('yyyy-MM-dd');
+  late final AccountingRepository _repo = widget.repo ?? AccountingRepository.instance;
 
   TxTypeFormSpec? _spec;
   final Map<FieldKey, Object?> _values = {};
   final Map<FieldKey, TextEditingController> _ctl = {};
+  final Map<FieldKey, GlobalKey> _kunci = {};
   Map<FieldKey, String> _errors = {};
   List<RefOption> _piutang = [], _retur = [];
   bool _loading = true, _saving = false;
 
   bool get _isEdit => widget.transaction != null;
+  DateTime get _hariIni => widget.hariIni ?? DateTime.now();
 
   @override
   void initState() {
@@ -65,21 +99,23 @@ class _FormFinancePageState extends State<FormFinancePage> {
     _errors = {};
     _values
       ..clear()
-      ..[FieldKey.tanggal] = _fmtTanggal.format(DateTime.now())
+      ..[FieldKey.tanggal] = isoTanggal(_hariIni)
       ..[FieldKey.sumberBayar] = PaymentSource.kas;
     if (awal != null) _values.addAll(awal);
     for (final c in _ctl.values) {
       c.dispose();
     }
     _ctl.clear();
+    _kunci.clear();
     for (final f in spec.fields) {
+      _kunci[f.key] = GlobalKey();
       final kind = f.key.kind;
       if (kind == FieldKind.uang || kind == FieldKind.jumlah || kind == FieldKind.teks) {
         final v = _values[f.key];
         _ctl[f.key] = TextEditingController(
             text: v == null || (kind != FieldKind.teks && v is! int)
                 ? '' // kosong atau nilai khusus (mis. tidak disusutkan)
-                : (kind == FieldKind.uang ? _ribuan(v as int) : '$v'));
+                : (kind == FieldKind.uang ? ribuan(v as int) : '$v'));
       }
     }
   }
@@ -94,7 +130,14 @@ class _FormFinancePageState extends State<FormFinancePage> {
     final spec = _spec!;
     final errors = validateForm(spec, _input);
     setState(() => _errors = errors);
-    if (errors.isNotEmpty) return;
+    if (errors.isNotEmpty) {
+      // Gulir ke isian pertama yang salah (urutan error = urutan field).
+      final ctx = _kunci[errors.keys.first]?.currentContext;
+      if (ctx != null) {
+        await Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.1);
+      }
+      return;
+    }
     final draft = buildDraft(spec, _input, id: widget.transaction?.id);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
@@ -108,153 +151,199 @@ class _FormFinancePageState extends State<FormFinancePage> {
         id = await _repo.insertDraft(draft);
       }
       final tersimpan = await _repo.transactionById(id);
-      messenger.showSnackBar(SnackBar(
-        duration: Duration(seconds: tersimpan?.perluDitinjau == true ? 8 : 3),
-        content: Text(tersimpan?.perluDitinjau == true
-            ? 'Tersimpan, tetapi ditandai PERLU DITINJAU dan belum dihitung di laporan: '
-                '${tersimpan!.reviewNote}'
-            : 'Transaksi tersimpan.'),
-      ));
+      if (!mounted) return;
+      if (tersimpan != null && tersimpan.perluDitinjau) {
+        await tampilkanPesan(
+          context,
+          judul: 'Tersimpan, tetapi perlu dicek',
+          isi: '${alasanPerluDicek(tersimpan.reviewNote)}.\n\n'
+              'Catatan ini belum dihitung di laporan sampai diperbaiki. '
+              'Buka Catatan, lalu ubah atau hapus.\n\nRincian: ${tersimpan.reviewNote}',
+        );
+      } else {
+        messenger.showSnackBar(SnackBar(
+          content: Text(_isEdit ? 'Perubahan tersimpan.' : 'Catatan tersimpan.'),
+        ));
+      }
       navigator.pop(true);
     } on PeriodLockedException catch (e) {
-      _gagal(pesanPeriodeTerkunci(e));
+      await _gagal(pesanPeriodeTerkunci(e));
     } catch (e) {
-      _gagal('Gagal menyimpan: $e');
+      await _gagal('Terjadi kesalahan saat menyimpan: $e');
     }
   }
 
-  void _gagal(String pesan) {
+  Future<void> _gagal(String pesan) async {
     if (!mounted) return;
     setState(() => _saving = false);
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tidak bisa disimpan'),
-        content: Text(pesan),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
-      ),
-    );
+    await tampilkanPesan(context, judul: 'Tidak bisa disimpan', isi: pesan, gagal: true);
   }
 
   @override
   Widget build(BuildContext context) {
     final spec = _spec;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(spec == null
-            ? 'Apa yang terjadi?'
-            : (_isEdit ? 'Ubah: ${spec.label}' : spec.label)),
-        leading: spec != null && !_isEdit
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _spec = null),
-              )
-            : null,
+    return PopScope(
+      // Catat baru: tombol kembali dari form = kembali ke pilihan.
+      canPop: spec == null || _isEdit,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _spec = null);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(spec == null ? 'Apa yang terjadi?' : (_isEdit ? 'Ubah catatan' : 'Catat')),
+        ),
+        bottomNavigationBar: spec == null || !spec.manual
+            ? null
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: TombolUtama(
+                    label: _saving ? 'Menyimpan...' : (_isEdit ? 'Simpan perubahan' : 'Simpan'),
+                    ikon: Icons.save,
+                    onPressed: _saving ? null : _simpan,
+                  ),
+                ),
+              ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : (spec == null ? _pilihTipe() : _form(spec)),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : (spec == null ? _pilihTipe() : _form(spec)),
     );
+  }
+
+  String? _alasanNonaktif(TxTypeFormSpec s) {
+    if (!s.manual) return s.otomatis;
+    if (s.retur && _retur.isEmpty) return 'Belum ada catatan yang bisa diretur.';
+    if (s.type == TxType.terimaPiutang && _piutang.isEmpty) {
+      return 'Belum ada penjualan yang belum dibayar.';
+    }
+    return null;
   }
 
   Widget _pilihTipe() {
-    final specs = [...txFormSpecs.values, returFormSpec];
-    return ListView.separated(
-      itemCount: specs.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, i) {
-        final s = specs[i];
-        final tanpaRujukan = (s.retur && _retur.isEmpty) ||
-            (s.type == TxType.terimaPiutang && _piutang.isEmpty);
-        return ListTile(
-          enabled: s.manual && !tanpaRujukan,
-          title: Text(s.label),
-          subtitle: Text(s.otomatis ??
-              (tanpaRujukan ? 'Belum ada transaksi yang bisa dipilih' : (s.penjelasan ?? ''))),
-          trailing: s.manual ? const Icon(Icons.chevron_right) : const Icon(Icons.lock_outline),
-          onTap: () => setState(() => _pilih(s)),
-        );
-      },
-    );
-  }
-
-  Widget _form(TxTypeFormSpec spec) {
-    if (!spec.manual) {
-      return Padding(padding: const EdgeInsets.all(24), child: Text(spec.otomatis!));
-    }
+    final t = Theme.of(context).textTheme;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      key: const PageStorageKey('pilih-kejadian'),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        if (spec.penjelasan != null)
-          Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(spec.penjelasan!)),
-        for (final f in spec.fields)
-          Padding(padding: const EdgeInsets.only(bottom: 12), child: _field(f)),
-        if (spec.retur && _isEdit)
-          const Text('Transaksi asal retur tidak bisa diganti; hapus lalu catat retur baru.'),
-        const SizedBox(height: 12),
-        FilledButton(
-          onPressed: _saving ? null : _simpan,
-          child: Text(_isEdit ? 'SIMPAN PERUBAHAN' : 'SIMPAN TRANSAKSI'),
-        ),
+        Text('Pilih yang paling sesuai dengan kejadiannya.', style: t.bodyLarge),
+        for (final k in kelompokCatat) ...[
+          const SizedBox(height: 20),
+          Semantics(header: true, child: Text(k.judul, style: t.titleMedium)),
+          for (final s in k.pilihan) ...[
+            const SizedBox(height: 8),
+            KartuPilihan(
+              judul: s.label,
+              penjelasan: s.penjelasan,
+              alasanNonaktif: _alasanNonaktif(s),
+              onTap: () => setState(() => _pilih(s)),
+            ),
+          ],
+        ],
       ],
     );
   }
 
-  InputDecoration _dec(FieldSpec f) => InputDecoration(
-        labelText: f.wajib ? f.label : '${f.label} (opsional)',
-        hintText: f.hint,
-        helperText: f.hint,
-        helperMaxLines: 2,
-        errorText: _errors[f.key],
-        border: const OutlineInputBorder(),
-      );
+  Widget _form(TxTypeFormSpec spec) {
+    final t = Theme.of(context).textTheme;
+    if (!spec.manual) {
+      return ListView(padding: const EdgeInsets.all(16), children: [
+        Text(spec.label, style: t.headlineSmall),
+        const SizedBox(height: 12),
+        BannerPeringatan(judul: 'Tidak bisa diubah di sini', isi: spec.otomatis!),
+      ]);
+    }
+    // Kunci per jenis: form baru selalu mulai dari atas (tidak mewarisi gulir daftar pilihan).
+    return ListView(
+      key: ObjectKey(spec),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: [
+        Text(spec.label, style: t.headlineSmall),
+        if (spec.penjelasan != null) ...[
+          const SizedBox(height: 4),
+          Text(spec.penjelasan!, style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
+        ],
+        if (!_isEdit) ...[
+          const SizedBox(height: 12),
+          TombolKedua(
+            label: 'Ganti pilihan',
+            ikon: Icons.swap_horiz,
+            onPressed: () => setState(() => _spec = null),
+          ),
+        ],
+        if (_errors.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          BannerPeringatan(
+            judul: '${_errors.length} isian perlu diperbaiki',
+            isi: 'Lihat tulisan merah di bawah isian.',
+            nada: Nada.error,
+          ),
+        ],
+        for (final f in spec.fields) ...[
+          const SizedBox(height: 20),
+          KeyedSubtree(key: _kunci[f.key], child: _field(spec, f)),
+        ],
+        if (spec.retur && _isEdit) ...[
+          const SizedBox(height: 12),
+          Text('Catatan asal retur tidak bisa diganti; hapus lalu catat retur baru.',
+              style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+        ],
+      ],
+    );
+  }
 
-  Widget _field(FieldSpec f) {
+  String _label(FieldSpec f) => f.wajib ? f.label : '${f.label} (boleh kosong)';
+
+  Widget _field(TxTypeFormSpec spec, FieldSpec f) {
+    final err = _errors[f.key];
     switch (f.key.kind) {
       case FieldKind.tanggal:
-        final v = _values[f.key] as String?;
-        return InkWell(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: parseTanggal(v) ?? DateTime.now(),
-              firstDate: DateTime(2000),
-              lastDate: DateTime(2100),
-            );
-            if (picked != null) setState(() => _values[f.key] = _fmtTanggal.format(picked));
-          },
-          child: InputDecorator(
-            decoration: _dec(f).copyWith(
-              suffixIcon: v != null && !f.wajib
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () => setState(() => _values[f.key] = null))
-                  : const Icon(Icons.calendar_today),
-            ),
-            child: Text(v ?? '-'),
-          ),
+        return InputTanggal(
+          label: _label(f),
+          nilai: _values[f.key] as String?,
+          bolehKosong: !f.wajib,
+          teksKosong: 'Belum diisi',
+          helperText: f.hint,
+          errorText: err,
+          hariIni: _hariIni,
+          onChanged: (v) => setState(() => _values[f.key] = v),
         );
       case FieldKind.uang:
+        return InputRupiah(
+          label: _label(f),
+          controller: _ctl[f.key]!,
+          helperText: f.hint,
+          errorText: err,
+          onChanged: (v) => _values[f.key] = v,
+        );
       case FieldKind.jumlah:
-        final uang = f.key.kind == FieldKind.uang;
-        int? angka() => int.tryParse(_ctl[f.key]!.text.replaceAll('.', ''));
+        int? angka() => int.tryParse(_ctl[f.key]!.text);
         final khusus = f.pilihan.any((p) => p.value == _values[f.key]);
+        final satuan = f.key == FieldKey.umurBulan
+            ? 'bulan'
+            : satuanBarang((_values[FieldKey.item] as StockItem?) ?? spec.itemTetap);
         final input = TextField(
           controller: _ctl[f.key],
           enabled: !khusus,
           keyboardType: TextInputType.number,
+          style: Theme.of(context).textTheme.titleMedium,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(15),
-            if (uang) _RibuanFormatter(),
           ],
-          decoration: _dec(f).copyWith(prefixText: uang ? 'Rp ' : null),
+          decoration: InputDecoration(
+            helperText: f.hint,
+            helperMaxLines: 10,
+            errorText: err,
+            errorMaxLines: 10,
+            suffixText: satuan.isEmpty ? null : satuan,
+          ),
           onChanged: (s) => _values[f.key] = angka(),
         );
-        if (f.pilihan.isEmpty) return input;
+        if (f.pilihan.isEmpty) return LabelIsian(label: _label(f), child: input);
         // Nilai khusus pengganti angka (umur manfaat: tidak disusutkan/tanah).
-        return Column(children: [
-          input,
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          LabelIsian(label: _label(f), child: input),
           for (final p in f.pilihan)
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
@@ -265,51 +354,46 @@ class _FormFinancePageState extends State<FormFinancePage> {
             ),
         ]);
       case FieldKind.teks:
-        return TextField(
+        final panjang = f.key == FieldKey.keterangan;
+        return LabelIsian(label: _label(f), child: TextField(
           controller: _ctl[f.key],
-          decoration: _dec(f),
+          textCapitalization: TextCapitalization.sentences,
+          minLines: 1,
+          maxLines: panjang ? 4 : 2,
+          decoration: InputDecoration(
+            helperText: f.hint == 'Opsional' ? null : f.hint,
+            helperMaxLines: 10,
+            errorText: err,
+            errorMaxLines: 10,
+          ),
           onChanged: (s) => _values[f.key] = s,
-        );
+        ));
       case FieldKind.pilihan:
-        return DropdownButtonFormField<Object>(
-          initialValue: _values[f.key],
-          isExpanded: true,
-          decoration: _dec(f),
-          items: [
-            for (final p in f.pilihan) DropdownMenuItem(value: p.value, child: Text(p.label)),
-          ],
+        return PilihanTunggal<Object>(
+          label: _label(f),
+          opsi: [for (final p in f.pilihan) OpsiPilihan(p.value, p.label)],
+          nilai: _values[f.key],
+          errorText: err,
           onChanged: (v) => setState(() => _values[f.key] = v),
         );
       case FieldKind.rujukan:
         final opsi = f.key == FieldKey.rujukanPiutang ? _piutang : _retur;
         final terkunci = _isEdit && f.key == FieldKey.transaksiAsal;
-        return DropdownButtonFormField<int>(
-          initialValue: _values[f.key] as int?,
-          isExpanded: true,
-          decoration: _dec(f),
-          items: [
+        return PilihanTunggal<int>(
+          label: _label(f),
+          opsi: [
             for (final r in opsi)
-              DropdownMenuItem(
-                value: r.id,
-                child: Text('${r.label} (sisa ${formatRupiah(r.sisa)})',
-                    overflow: TextOverflow.ellipsis),
+              OpsiPilihan(
+                r.id,
+                txFormSpecs[r.type]!.label,
+                keterangan: '${tanggalPendek(r.date)} · ${rupiah(r.amount)} · '
+                    'sisa ${rupiah(r.sisa)} · No. ${r.id}',
               ),
           ],
+          nilai: _values[f.key] as int?,
+          errorText: err,
           onChanged: terkunci ? null : (v) => setState(() => _values[f.key] = v),
         );
     }
-  }
-
-  static String _ribuan(int v) => NumberFormat.decimalPattern('id_ID').format(v);
-}
-
-/// Pemisah ribuan (titik) untuk bilangan bulat Rupiah, tanpa double.
-class _RibuanFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return const TextEditingValue();
-    final text = _FormFinancePageState._ribuan(int.parse(digits));
-    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
   }
 }

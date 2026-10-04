@@ -203,6 +203,9 @@ class BannerPeringatan extends StatelessWidget {
 
 final _ribuan = NumberFormat.decimalPattern('id_ID');
 
+/// "12.500.000" (titik ribuan, tanpa Rp).
+String ribuan(int v) => _ribuan.format(v);
+
 /// "Rp12.500.000" / "−Rp12.500" (bilangan bulat Rupiah, tanpa desimal).
 String rupiah(int v) => '${v < 0 ? '−' : ''}Rp${_ribuan.format(v.abs())}';
 
@@ -222,6 +225,24 @@ class RibuanFormatter extends TextInputFormatter {
 
 /// Bilangan bulat dari teks berformat ribuan ("12.500" -> 12500); null bila kosong.
 int? bacaRupiah(String s) => int.tryParse(s.replaceAll('.', ''));
+
+/// Label isian di atas kotaknya: selalu utuh (turun baris), tidak dipotong
+/// seperti label di dalam kotak saat huruf diperbesar.
+class LabelIsian extends StatelessWidget {
+  const LabelIsian({super.key, required this.label, required this.child});
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 6),
+          child,
+        ],
+      );
+}
 
 /// Input nominal Rupiah: angka besar, keyboard angka, titik ribuan, maks 15 digit.
 class InputRupiah extends StatelessWidget {
@@ -244,7 +265,7 @@ class InputRupiah extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return TextField(
+    final input = TextField(
       controller: controller,
       enabled: enabled,
       keyboardType: TextInputType.number,
@@ -255,16 +276,16 @@ class InputRupiah extends StatelessWidget {
         RibuanFormatter(),
       ],
       decoration: InputDecoration(
-        labelText: label,
         prefixText: 'Rp ',
         prefixStyle: t.titleMedium,
         errorText: errorText,
         helperText: helperText,
-        helperMaxLines: 3,
-        errorMaxLines: 3,
+        helperMaxLines: 10,
+        errorMaxLines: 10,
       ),
       onChanged: onChanged == null ? null : (s) => onChanged!(bacaRupiah(s)),
     );
+    return LabelIsian(label: label, child: input);
   }
 }
 
@@ -300,4 +321,359 @@ Future<bool> tanyaKonfirmasi(
     ),
   );
   return ya ?? false;
+}
+
+/// Dialog pemberitahuan satu tombol (hasil simpan, alasan gagal).
+Future<void> tampilkanPesan(
+  BuildContext context, {
+  required String judul,
+  required String isi,
+  String tombol = 'Mengerti',
+  bool gagal = false,
+}) =>
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(gagal ? Icons.error_outline : Icons.info_outline,
+            color: gagal ? Warna.error : Warna.peringatan, size: 36),
+        title: Text(judul),
+        content: SingleChildScrollView(child: Text(isi)),
+        actions: [
+          TombolUtama(label: tombol, ikon: Icons.check, onPressed: () => Navigator.pop(ctx)),
+        ],
+      ),
+    );
+
+// --- Tanggal ---
+
+const namaBulan = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+const _namaHari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+final _iso = DateFormat('yyyy-MM-dd');
+
+/// yyyy-MM-dd (format tanggal di DB dan tx_form_spec).
+String isoTanggal(DateTime t) => _iso.format(t);
+
+/// "4 Oktober 2026"; teks asli bila bukan tanggal yyyy-MM-dd.
+String tanggalPanjang(String iso) {
+  final t = DateTime.tryParse(iso);
+  return t == null ? iso : '${t.day} ${namaBulan[t.month - 1]} ${t.year}';
+}
+
+/// "4 Okt 2026".
+String tanggalPendek(String iso) {
+  final t = DateTime.tryParse(iso);
+  return t == null ? iso : '${t.day} ${namaBulan[t.month - 1].substring(0, 3)} ${t.year}';
+}
+
+/// Pilih tanggal tanpa mengetik: tombol cepat "Hari ini" / "Kemarin" dan kalender.
+/// Nilai = yyyy-MM-dd; null hanya untuk field opsional ([bolehKosong]).
+class InputTanggal extends StatelessWidget {
+  const InputTanggal({
+    super.key,
+    required this.label,
+    required this.nilai,
+    required this.onChanged,
+    this.bolehKosong = false,
+    this.teksKosong = '-',
+    this.helperText,
+    this.errorText,
+    this.hariIni,
+  });
+  final String label;
+  final String? nilai;
+  final ValueChanged<String?> onChanged;
+  final bool bolehKosong;
+  final String teksKosong;
+  final String? helperText;
+  final String? errorText;
+
+  /// Pengganti "sekarang" (tes); null = DateTime.now().
+  final DateTime? hariIni;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final now = hariIni ?? DateTime.now();
+    final hari = DateTime(now.year, now.month, now.day);
+    final kemarin = DateTime(hari.year, hari.month, hari.day - 1);
+    final dipilih = nilai == null ? null : DateTime.tryParse(nilai!);
+    String teks() {
+      if (dipilih == null) return nilai ?? teksKosong;
+      final keterangan = nilai == isoTanggal(hari)
+          ? ' (hari ini)'
+          : (nilai == isoTanggal(kemarin) ? ' (kemarin)' : '');
+      return '${_namaHari[dipilih.weekday - 1]}, ${tanggalPanjang(nilai!)}$keterangan';
+    }
+
+    Future<void> kalender() async {
+      final p = await showDatePicker(
+        context: context,
+        initialDate: dipilih ?? hari,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100),
+        helpText: label,
+        cancelText: 'Batal',
+        confirmText: 'Pilih',
+      );
+      if (p != null) onChanged(isoTanggal(p));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(label, style: t.titleSmall),
+        const SizedBox(height: 6),
+        InputDecorator(
+          decoration: InputDecoration(
+            helperText: helperText,
+            helperMaxLines: 10,
+            errorText: errorText,
+            errorMaxLines: 10,
+            prefixIcon: const Icon(Icons.event),
+          ),
+          child: Text(teks(), style: t.titleSmall),
+        ),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          TombolKedua(
+              label: 'Hari ini', ikon: Icons.today, lebarPenuh: false, onPressed: () => onChanged(isoTanggal(hari))),
+          TombolKedua(
+              label: 'Kemarin',
+              ikon: Icons.history,
+              lebarPenuh: false,
+              onPressed: () => onChanged(isoTanggal(kemarin))),
+          TombolKedua(label: 'Pilih tanggal', ikon: Icons.calendar_month, lebarPenuh: false, onPressed: kalender),
+          if (bolehKosong && nilai != null)
+            TombolKedua(label: 'Kosongkan', ikon: Icons.clear, lebarPenuh: false, onPressed: () => onChanged(null)),
+        ]),
+      ],
+    );
+  }
+}
+
+// --- Pilihan ---
+
+class OpsiPilihan<T> {
+  const OpsiPilihan(this.nilai, this.label, {this.keterangan});
+  final T nilai;
+  final String label;
+  final String? keterangan;
+}
+
+/// Pilih satu dari beberapa: setiap pilihan baris besar (>= 56dp) dengan tanda
+/// bulat dan tulisan, bukan dropdown kecil. [onChanged] null = terkunci.
+class PilihanTunggal<T> extends StatelessWidget {
+  const PilihanTunggal({
+    super.key,
+    required this.label,
+    required this.opsi,
+    required this.nilai,
+    required this.onChanged,
+    this.errorText,
+    this.helperText,
+    this.teksKosong = 'Belum ada yang bisa dipilih',
+  });
+  final String label;
+  final List<OpsiPilihan<T>> opsi;
+  final T? nilai;
+  final ValueChanged<T>? onChanged;
+  final String? errorText;
+  final String? helperText;
+  final String teksKosong;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(label, style: t.titleSmall),
+        if (helperText != null) Text(helperText!, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+        const SizedBox(height: 8),
+        if (opsi.isEmpty) Text(teksKosong, style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
+        for (final o in opsi) ...[
+          _BarisPilihan(
+            label: o.label,
+            keterangan: o.keterangan,
+            terpilih: o.nilai == nilai,
+            onTap: onChanged == null ? null : () => onChanged!(o.nilai),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (errorText != null) Text(errorText!, style: t.bodySmall!.copyWith(color: Warna.error)),
+      ],
+    );
+  }
+}
+
+class _BarisPilihan extends StatelessWidget {
+  const _BarisPilihan({required this.label, this.keterangan, required this.terpilih, this.onTap});
+  final String label;
+  final String? keterangan;
+  final bool terpilih;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      checked: terpilih,
+      enabled: onTap != null,
+      child: Material(
+        color: terpilih ? Warna.primerMuda : Warna.permukaan,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: terpilih ? Warna.primer : Warna.teksSekunder, width: terpilih ? 2 : 1),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: tinggiTombolUtama),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(children: [
+                Icon(terpilih ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                    color: terpilih ? Warna.primer : Warna.teksSekunder),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(label, style: t.bodyLarge!.copyWith(fontWeight: terpilih ? FontWeight.w700 : null)),
+                    if (keterangan != null)
+                      Text(keterangan!, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+                  ]),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kartu pilihan besar di layar "Apa yang terjadi?": label + penjelasan.
+/// [alasanNonaktif] bukan null = tidak bisa dipilih; alasannya tetap ditampilkan.
+class KartuPilihan extends StatelessWidget {
+  const KartuPilihan({super.key, required this.judul, this.penjelasan, this.alasanNonaktif, this.onTap});
+  final String judul;
+  final String? penjelasan;
+  final String? alasanNonaktif;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final aktif = alasanNonaktif == null;
+    return Semantics(
+      button: true,
+      enabled: aktif,
+      child: Material(
+        color: aktif ? Warna.permukaan : Warna.latar,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: aktif ? Warna.primer : Warna.teksSekunder, width: aktif ? 2 : 1),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: aktif ? onTap : null,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 72),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(judul, style: t.titleSmall!.copyWith(color: aktif ? Warna.primer : Warna.teks)),
+                    if (penjelasan != null && penjelasan!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(penjelasan!, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+                    ],
+                    if (!aktif) ...[
+                      const SizedBox(height: 8),
+                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Icon(Icons.lock_outline, color: Warna.teksSekunder),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Belum bisa dipilih: $alasanNonaktif',
+                              style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+                        ),
+                      ]),
+                    ],
+                  ]),
+                ),
+                if (aktif) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right, color: Warna.primer, size: 32),
+                ],
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Laporan ---
+
+/// Satu baris laporan: label kiri, angka rata kanan. Bila tidak muat dalam satu
+/// baris (huruf besar), angka turun ke baris berikutnya, tetap rata kanan.
+class BarisLaporan extends StatelessWidget {
+  const BarisLaporan({
+    super.key,
+    required this.label,
+    required this.nilai,
+    this.tebal = false,
+    this.warnaNilai,
+    this.menjorok = 0,
+  });
+  final String label;
+  final String nilai;
+  final bool tebal;
+  final Color? warnaNilai;
+
+  /// Tingkat indentasi label (0 = tidak menjorok).
+  final int menjorok;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final gayaLabel = (tebal ? t.titleSmall : t.bodyLarge)!;
+    final gayaNilai = gayaLabel.copyWith(
+        fontWeight: tebal ? FontWeight.w700 : FontWeight.w600, color: warnaNilai ?? Warna.teks);
+    return Semantics(
+      label: '$label: $nilai',
+      excludeSemantics: true,
+      child: Padding(
+        padding: EdgeInsets.only(left: 16.0 * menjorok, top: 6, bottom: 6),
+        child: LayoutBuilder(builder: (context, c) {
+          final ukur = TextPainter(
+            text: TextSpan(text: nilai, style: gayaNilai),
+            textDirection: Directionality.of(context),
+            textScaler: MediaQuery.textScalerOf(context),
+            maxLines: 1,
+          )..layout();
+          final lebarNilai = ukur.width;
+          ukur.dispose();
+          final labelW = Text(label, style: gayaLabel);
+          final nilaiW = Text(nilai, style: gayaNilai, textAlign: TextAlign.right);
+          // Label butuh minimal 40% lebar agar tidak terpotong per huruf.
+          if (lebarNilai + 12 <= c.maxWidth * 0.6) {
+            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(child: labelW),
+              const SizedBox(width: 12),
+              nilaiW,
+            ]);
+          }
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [labelW, nilaiW]);
+        }),
+      ),
+    );
+  }
 }

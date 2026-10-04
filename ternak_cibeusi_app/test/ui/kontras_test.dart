@@ -46,4 +46,20 @@ void main() {
     expect(rasioKontras(Warna.putih, Warna.aksen), lessThan(4.5));
     expect(pasanganKontras.where((p) => p.$2 == Warna.aksen), isEmpty);
   });
+
+  test('S2: pasangan yang dipakai Catat/Riwayat terdaftar dan >= 4,5:1', () {
+    final dipakai = [
+      (Warna.teksSekunder, Warna.primerMuda), // keterangan pilihan terpilih
+      (Warna.peringatan, Warna.peringatanMuda), // label "Perlu dicek"
+      (Warna.sukses, Warna.permukaan), // "+Rp... Masuk"
+      (Warna.teksSekunder, Warna.permukaan), // "Tidak lewat kas", tanggal
+      (Warna.teks, Warna.latar), // kartu pilihan nonaktif
+      (Warna.teksSekunder, Warna.latar), // alasan nonaktif
+      (Warna.error, Warna.errorMuda), // banner isian salah
+    ];
+    for (final (teks, latar) in dipakai) {
+      expect(pasanganKontras.any((p) => p.$2 == teks && p.$3 == latar), isTrue, reason: '$teks/$latar belum terdaftar');
+      expect(rasioKontras(teks, latar), greaterThanOrEqualTo(4.5));
+    }
+  });
 }

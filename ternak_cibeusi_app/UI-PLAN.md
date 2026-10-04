@@ -79,10 +79,10 @@ Setiap sesi: tes widget pada skala huruf 2,0 tanpa overflow, uji di HP siang har
 Baseline 67 isu = `flutter analyze` pada commit d1e4fc5 (awal Fase 1). 18 sudah hilang selama Fase 1; 49 tersisa (dicek 2026-10-04). Semua ada di layar yang akan diganti.
 | File | Isu (jenis) | Diganti oleh | Sesi | Status |
 |---|---|---|---|---|
-| main.dart | 9 (6 withOpacity, 2 super-parameter, 1 impor fl_chart tak terpakai) | Beranda + navigasi | S1 | sisa |
-| finance_page.dart | 8 (7 withOpacity, 1 super-parameter) | dihapus (kode mati) | S1 | sisa |
-| splash_page.dart | 1 (super-parameter) | Splash | S1 | sisa |
-| onboarding_page.dart | 2 (1 withOpacity, 1 super-parameter) | Onboarding | S1 | sisa |
+| main.dart | 9 (6 withOpacity, 2 super-parameter, 1 impor fl_chart tak terpakai) | Beranda + navigasi | S1 | sudah 0 |
+| finance_page.dart | 8 (7 withOpacity, 1 super-parameter) | dihapus (kode mati) | S1 | sudah 0 |
+| splash_page.dart | 1 (super-parameter) | Splash | S1 | sudah 0 |
+| onboarding_page.dart | 2 (1 withOpacity, 1 super-parameter) | Onboarding | S1 | sudah 0 |
 | form_finance_page.dart | 3 (2 deprecated, 1 super-parameter) | Catat | S2 | sudah 0 |
 | list_finance_page.dart | 5 (4 withOpacity, 1 super-parameter) | Riwayat | S2 | sudah 0 |
 | report_page.dart | 2 (1 withOpacity, 1 super-parameter) | Laporan dua lapis | S3 | sudah 0 |
@@ -91,3 +91,11 @@ Baseline 67 isu = `flutter analyze` pada commit d1e4fc5 (awal Fase 1). 18 sudah 
 | detail_asset_page.dart | 5 (4 withOpacity, 1 super-parameter) | Inventaris: detail | S4 | sisa |
 | list_asset_page.dart | 4 (3 withOpacity, 1 super-parameter) | Inventaris: daftar | S4 | sisa |
 | **Jumlah** | **67** (49 sisa + 18 sudah 0) | | | target 0 sesudah S4 |
+
+Dicek ulang sesudah S2 (2026-10-04): 29 isu, semuanya di form_asset_page (20), detail_asset_page (5), list_asset_page (4) = Inventaris S4. File baru/diubah S1-S2 dan semua file tes: 0 isu.
+
+## 9. Kemajuan (centang = terkomit, `flutter test` hijau, `flutter build apk --debug` sukses)
+- [x] S1 — tema, komponen dasar, navigasi bawah, Beranda, splash/onboarding
+- [x] S2 — "Apa yang terjadi?" berkelompok (`kelompokCatat`), form dengan `InputRupiah`/`InputTanggal`/`PilihanTunggal`, Riwayat per bulan (`list_finance_page.dart`), detail Ubah/Hapus (`detail_catatan_page.dart`), 5 catatan terakhir di Beranda (`ItemCatatan` yang sama). Tes: `test/ui/catat_test.dart`, `riwayat_test.dart`, `alur_catat_test.dart`
+- [ ] S3 — laporan dua lapis + PDF
+- [ ] S4 — Lainnya (cadangan, pulihkan, tutup buku, CSV), onboarding cadangan berkala, Inventaris
