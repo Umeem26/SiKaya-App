@@ -51,8 +51,14 @@ class DatabaseHelper {
     final version = await old.getVersion();
     await old.close();
     if (version >= dbVersion) return null;
+    return copyDatabaseFile(path, 'v$version');
+  }
+
+  /// Salin file DB beserta -wal/-shm/-journal ke `<nama>_backup_<label>_<waktu>.db`
+  /// di folder yang sama. Mengembalikan path salinan.
+  static Future<String> copyDatabaseFile(String path, String label) async {
     final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final backup = '${withoutExtension(path)}_backup_v${version}_$stamp${extension(path)}';
+    final backup = '${withoutExtension(path)}_backup_${label}_$stamp${extension(path)}';
     await File(path).copy(backup);
     for (final suffix in ['-wal', '-shm', '-journal']) {
       final f = File('$path$suffix');
@@ -60,6 +66,9 @@ class DatabaseHelper {
     }
     return backup;
   }
+
+  /// Cadangan file DB yang sedang dipakai (sebelum tutup buku / reset).
+  Future<String> backup(String label) async => copyDatabaseFile((await database).path, label);
 
   // --- CRUD ASSET (inventaris, tidak dihitung di laporan keuangan) ---
   Future<int> create(AssetModel asset) async {
@@ -79,16 +88,15 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.delete('assets', where: 'id = ?', whereArgs: [id]);
   }
-  Future<void> nukeDatabase() async {
-    final db = await instance.database;
-    await db.delete('period_closings');
-    await db.delete('transactions');
-    await db.delete('fixed_assets');
-    await db.delete('assets');
-  }
-  // Tahap 4: ganti dengan tutup buku non-destruktif (period_closings).
-  Future<void> closeBookAndReset() async {
-    final db = await instance.database;
-    await db.delete('transactions');
+  /// Reset aplikasi: salin file DB sebagai cadangan, lalu hapus file DB.
+  /// Koneksi berikutnya membuat tabel kosong. Mengembalikan path cadangan.
+  Future<String> resetDatabase() async {
+    final db = await database;
+    final path = db.path;
+    final saved = await copyDatabaseFile(path, 'reset');
+    await db.close();
+    _database = null;
+    await databaseFactory.deleteDatabase(path);
+    return saved;
   }
 }

@@ -11,11 +11,20 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class ReportPage extends StatefulWidget {
-  const ReportPage({Key? key}) : super(key: key);
+  const ReportPage({super.key});
 
   @override
   State<ReportPage> createState() => _ReportPageState();
 }
+
+enum _Periode { bulanIni, bulanLalu, tahunIni, rentang }
+
+const _labelPeriode = {
+  _Periode.bulanIni: 'Bulan ini',
+  _Periode.bulanLalu: 'Bulan lalu',
+  _Periode.tahunIni: 'Tahun ini',
+  _Periode.rentang: 'Rentang bebas',
+};
 
 class _ReportPageState extends State<ReportPage> {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -27,36 +36,86 @@ class _ReportPageState extends State<ReportPage> {
   String _ownerName = "Nama Peternak";
 
   late Report _r;
-  DateTime _asOf = DateTime.now();
+
+  /// Posisi Keuangan sehari sebelum _from (saldo awal ekuitas).
+  Report? _awal;
+  _Periode _periode = _Periode.bulanIni;
+  late DateTime _from;
+  late DateTime _asOf;
   List<AssetModel> _operationalAssets = [];
 
   @override
   void initState() {
     super.initState();
+    _setPeriode(_Periode.bulanIni);
+    _loadData();
+  }
+
+  /// Laba Rugi [_from, _asOf]; Posisi Keuangan per _asOf. Periode berjalan s.d. hari ini.
+  void _setPeriode(_Periode p, [DateTimeRange? rentang]) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _periode = p;
+    switch (p) {
+      case _Periode.bulanIni:
+        _from = DateTime(now.year, now.month, 1);
+        _asOf = today;
+      case _Periode.bulanLalu:
+        _from = DateTime(now.year, now.month - 1, 1);
+        _asOf = DateTime(now.year, now.month, 0);
+      case _Periode.tahunIni:
+        _from = DateTime(now.year, 1, 1);
+        _asOf = today;
+      case _Periode.rentang:
+        _from = rentang!.start;
+        _asOf = rentang.end;
+    }
+  }
+
+  Future<void> _gantiPeriode(_Periode? p) async {
+    if (p == null) return;
+    DateTimeRange? rentang;
+    if (p == _Periode.rentang) {
+      rentang = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100),
+        initialDateRange: DateTimeRange(start: _from, end: _asOf),
+      );
+      if (rentang == null) return;
+    }
+    _setPeriode(p, rentang);
     _loadData();
   }
 
   void _loadData() async {
     setState(() => _isLoading = true);
-    
+
     final prefs = await SharedPreferences.getInstance();
     String name = prefs.getString('owner_name') ?? "Nama Peternak";
 
-    // Laba Rugi sejak awal s.d. hari ini; Posisi Keuangan per hari ini.
-    final asOf = DateTime.now();
-    final laporan = await AccountingRepository.instance.loadReport(asOf: asOf);
+    final laporan = await AccountingRepository.instance.loadReport(asOf: _asOf, from: _from);
     final assets = await _dbHelper.readAllAssets();
-    
+
     if (mounted) {
       setState(() {
         _ownerName = name;
         _r = laporan.report;
-        _asOf = asOf;
+        _awal = laporan.opening;
         _operationalAssets = assets.where((a) => a.kategori == 'Operasional Habis Pakai').toList();
         _isLoading = false;
       });
     }
   }
+
+  String _tgl(DateTime t) => DateFormat('dd MMMM yyyy').format(t);
+  String get _teksPeriode => "Untuk Periode ${_tgl(_from)} s.d. ${_tgl(_asOf)}";
+  String get _teksPer => "Per ${_tgl(_asOf)}";
+
+  // Saldo awal + perubahan periode (invarian D2: akhir = awal + laba - prive periode).
+  int get _modalAwal => _awal?.modalDisetor ?? 0;
+  int get _saldoLabaAwal => _awal?.saldoLaba ?? 0;
+  int get _privePeriode => _r.prive - (_awal?.prive ?? 0);
 
   String _fmt(int? val) => NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(val ?? 0);
 
@@ -123,7 +182,7 @@ class _ReportPageState extends State<ReportPage> {
         centerTitle: true,
         elevation: 0,
       ),
-      body: _isLoading 
+      body: _isLoading
         ? Center(child: CircularProgressIndicator(color: polbanBlue))
         : Column(
             children: [
@@ -132,10 +191,25 @@ class _ReportPageState extends State<ReportPage> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(50)),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(50)),
                   child: Row(children: [_buildToggle("Laporan Keuangan", true), _buildToggle("Laporan Asset Tetap", false)]),
                 ),
               ),
+              if (_showFinance)
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(children: [
+                    const Text("Periode: "),
+                    DropdownButton<_Periode>(
+                      value: _periode,
+                      items: [for (final p in _Periode.values) DropdownMenuItem(value: p, child: Text(_labelPeriode[p]!))],
+                      onChanged: _gantiPeriode,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text("${DateFormat('dd/MM/yyyy').format(_from)} - ${DateFormat('dd/MM/yyyy').format(_asOf)}", style: const TextStyle(fontSize: 12))),
+                  ]),
+                ),
               Expanded(child: _showFinance ? _buildFinanceSection() : _buildAssetSection()),
             ],
           ),
@@ -186,7 +260,7 @@ class _ReportPageState extends State<ReportPage> {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _excelHeader(_ownerName, "Laporan Laba Rugi"),
+          _excelHeader(_ownerName, "Laporan Laba Rugi", _teksPeriode),
           const SizedBox(height: 20),
           _boldText("A. Pendapatan"),
           _excelRow("Pendapatan Penjualan", _r.pendapatan, showUnderline: true),
@@ -211,15 +285,18 @@ class _ReportPageState extends State<ReportPage> {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _excelHeader(_ownerName, "Laporan Perubahan Ekuitas"),
+          _excelHeader(_ownerName, "Laporan Perubahan Ekuitas", _teksPeriode),
           const SizedBox(height: 20),
           _boldText("A. Modal Disetor"),
-          _excelTotalRow("Modal Disetor", _r.modalDisetor),
+          _excelRow("Modal Disetor Awal", _modalAwal),
+          _excelRow("Setoran Modal Periode Ini", _r.modalDisetor - _modalAwal, showUnderline: true),
+          _excelTotalRow("Modal Disetor Akhir", _r.modalDisetor),
           const SizedBox(height: 20),
           _boldText("B. Saldo Laba"),
-          _excelRow("Laba (Rugi) Bersih", _r.labaBersih),
-          _excelRow("Prive (Penarikan Pemilik)", -_r.prive, showUnderline: true),
-          _excelTotalRow("Saldo Laba", _r.saldoLaba),
+          _excelRow("Saldo Laba Awal", _saldoLabaAwal),
+          _excelRow("Laba (Rugi) Bersih Periode Ini", _r.labaBersih),
+          _excelRow("Prive (Penarikan Pemilik)", -_privePeriode, showUnderline: true),
+          _excelTotalRow("Saldo Laba Akhir", _r.saldoLaba),
           const SizedBox(height: 30),
           _excelGrandTotal("TOTAL EKUITAS", _ekuitas),
           const SizedBox(height: 80),
@@ -236,7 +313,7 @@ class _ReportPageState extends State<ReportPage> {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _excelHeader(_ownerName, "Laporan Posisi Keuangan"),
+          _excelHeader(_ownerName, "Laporan Posisi Keuangan", _teksPer),
           const SizedBox(height: 20),
           _boldText("ASET"),
           for (final a in _barisAset) _neracaRow(a.$1, a.$2, a.$3),
@@ -265,12 +342,12 @@ class _ReportPageState extends State<ReportPage> {
       body: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Container(padding: const EdgeInsets.all(25), decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.black), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]), child: content)),
     );
   }
-  Widget _excelHeader(String t1, String t2) {
+  Widget _excelHeader(String t1, String t2, String t3) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(border: Border.all(color: Colors.black)),
-      child: Column(children: [Text(t1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text(t2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text("Untuk Periode Yang Berakhir ${DateFormat('dd MMMM yyyy').format(_asOf)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))]),
+      child: Column(children: [Text(t1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text(t2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text(t3, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))]),
     );
   }
   Widget _boldText(String t) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold)));
@@ -281,7 +358,7 @@ class _ReportPageState extends State<ReportPage> {
   Widget _buildAssetSection() {return Scaffold(body: _operationalAssets.isEmpty ? const Center(child: Text("Belum ada data", style: TextStyle(color: Colors.grey))) : ListView.builder(padding: const EdgeInsets.all(20), itemCount: _operationalAssets.length, itemBuilder: (context, index) { final item = _operationalAssets[index]; return Card(child: ListTile(leading: const Icon(Icons.inventory, color: Colors.orange), title: Text(item.nama, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text("${item.jumlah} ${item.satuan}"))); },));}
 
   // --- PDF GENERATOR (Update Format PDF) ---
-  pw.Widget _pdfHeaderBox(String title) {
+  pw.Widget _pdfHeaderBox(String title, String periode) {
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.all(10),
@@ -289,7 +366,7 @@ class _ReportPageState extends State<ReportPage> {
       child: pw.Column(children: [
         pw.Text(_ownerName, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
         pw.Text(title, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-        pw.Text("Untuk Periode Yang Berakhir ${DateFormat('dd MMMM yyyy').format(_asOf)}", style: pw.TextStyle(fontSize: 12)),
+        pw.Text(periode, style: pw.TextStyle(fontSize: 12)),
       ]),
     );
   }
@@ -297,7 +374,7 @@ class _ReportPageState extends State<ReportPage> {
   Future<void> _printLabaRugiPDF() async {
     final pdf = pw.Document();
     pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      _pdfHeaderBox("Laporan Laba Rugi"),
+      _pdfHeaderBox("Laporan Laba Rugi", _teksPeriode),
       pw.SizedBox(height: 20),
       _pdfBold("A. Pendapatan"),
       _pdfRow("Pendapatan Penjualan", _r.pendapatan, underline: true),
@@ -312,8 +389,8 @@ class _ReportPageState extends State<ReportPage> {
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
-  Future<void> _printModalPDF() async { final pdf = pw.Document(); pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [_pdfHeaderBox("Laporan Perubahan Ekuitas"), pw.SizedBox(height: 20), _pdfBold("A. Modal Disetor"), _pdfTotalRow("Modal Disetor", _r.modalDisetor), pw.SizedBox(height: 15), _pdfBold("B. Saldo Laba"), _pdfRow("Laba (Rugi) Bersih", _r.labaBersih), _pdfRow("Prive (Penarikan Pemilik)", -_r.prive, underline: true), _pdfTotalRow("Saldo Laba", _r.saldoLaba), pw.SizedBox(height: 20), _pdfGrandTotal("TOTAL EKUITAS", _ekuitas)]))); await Printing.layoutPdf(onLayout: (format) async => pdf.save()); }
-  Future<void> _printNeracaPDF() async { final pdf = pw.Document(); pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [_pdfHeaderBox("Laporan Posisi Keuangan"), pw.SizedBox(height: 20), _pdfBold("ASET"), for (final a in _barisAset) _pdfRowCode(a.$1, a.$2, a.$3), pw.Divider(), _pdfGrandTotal("TOTAL ASET", _r.totalAset), pw.SizedBox(height: 20), _pdfBold("LIABILITAS & EKUITAS"), _pdfBold("Liabilitas"), _pdfRowCode("2-1001", "Utang", _r.utang), pw.SizedBox(height: 5), _pdfBold("Ekuitas"), _pdfRowCode("3-1001", "Modal Disetor", _r.modalDisetor), _pdfRowCode("3-2001", "Saldo Laba", _r.saldoLaba), pw.Divider(), _pdfGrandTotal("TOTAL LIABILITAS & EKUITAS", _r.totalLiabilitasEkuitas)]))); await Printing.layoutPdf(onLayout: (format) async => pdf.save()); }
+  Future<void> _printModalPDF() async { final pdf = pw.Document(); pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [_pdfHeaderBox("Laporan Perubahan Ekuitas", _teksPeriode), pw.SizedBox(height: 20), _pdfBold("A. Modal Disetor"), _pdfRow("Modal Disetor Awal", _modalAwal), _pdfRow("Setoran Modal Periode Ini", _r.modalDisetor - _modalAwal, underline: true), _pdfTotalRow("Modal Disetor Akhir", _r.modalDisetor), pw.SizedBox(height: 15), _pdfBold("B. Saldo Laba"), _pdfRow("Saldo Laba Awal", _saldoLabaAwal), _pdfRow("Laba (Rugi) Bersih Periode Ini", _r.labaBersih), _pdfRow("Prive (Penarikan Pemilik)", -_privePeriode, underline: true), _pdfTotalRow("Saldo Laba Akhir", _r.saldoLaba), pw.SizedBox(height: 20), _pdfGrandTotal("TOTAL EKUITAS", _ekuitas)]))); await Printing.layoutPdf(onLayout: (format) async => pdf.save()); }
+  Future<void> _printNeracaPDF() async { final pdf = pw.Document(); pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [_pdfHeaderBox("Laporan Posisi Keuangan", _teksPer), pw.SizedBox(height: 20), _pdfBold("ASET"), for (final a in _barisAset) _pdfRowCode(a.$1, a.$2, a.$3), pw.Divider(), _pdfGrandTotal("TOTAL ASET", _r.totalAset), pw.SizedBox(height: 20), _pdfBold("LIABILITAS & EKUITAS"), _pdfBold("Liabilitas"), _pdfRowCode("2-1001", "Utang", _r.utang), pw.SizedBox(height: 5), _pdfBold("Ekuitas"), _pdfRowCode("3-1001", "Modal Disetor", _r.modalDisetor), _pdfRowCode("3-2001", "Saldo Laba", _r.saldoLaba), pw.Divider(), _pdfGrandTotal("TOTAL LIABILITAS & EKUITAS", _r.totalLiabilitasEkuitas)]))); await Printing.layoutPdf(onLayout: (format) async => pdf.save()); }
 
   // Helper Widgets PDF (Sama seperti sebelumnya)
   pw.Widget _pdfBold(String t) => pw.Padding(padding: const pw.EdgeInsets.only(bottom: 5), child: pw.Text(t, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)));

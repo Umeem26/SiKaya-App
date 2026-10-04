@@ -22,13 +22,47 @@ class PeriodReport {
   const PeriodReport(this.from, this.asOf, this.report, this.kas, {this.opening});
 }
 
+/// Ringkasan periode yang akan ditutup buku (dipakai dialog konfirmasi dan closeBook).
+class ClosingPreview {
+  /// Hari sesudah tutup buku sebelumnya; null = sejak awal pencatatan.
+  final DateTime? from;
+  final DateTime until;
+
+  /// Laba Rugi [from, until] dan Posisi Keuangan per until.
+  final Report report;
+  const ClosingPreview(this.from, this.until, this.report);
+}
+
+class ClosingResult {
+  final ClosingPreview preview;
+  final String backupPath;
+  final int closingTxId;
+  const ClosingResult(this.preview, this.backupPath, this.closingTxId);
+}
+
+/// Tutup buku ditolak (periode sudah ditutup, tanggal di masa depan, data perlu ditinjau).
+class ClosingRejectedException implements Exception {
+  ClosingRejectedException(this.pesan);
+  final String pesan;
+  @override
+  String toString() => pesan;
+}
+
+DateTime _hari(DateTime t) => DateTime(t.year, t.month, t.day);
+String _iso(DateTime t) => t.toIso8601String().substring(0, 10);
+
 class AccountingRepository {
-  AccountingRepository(this._open);
+  AccountingRepository(this._open, {Future<String> Function()? backup}) : _backup = backup;
 
   final Future<Database> Function() _open;
 
-  static final AccountingRepository instance =
-      AccountingRepository(() => DatabaseHelper.instance.database);
+  /// Menyalin file DB sebelum tutup buku; mengembalikan path cadangan.
+  final Future<String> Function()? _backup;
+
+  static final AccountingRepository instance = AccountingRepository(
+    () => DatabaseHelper.instance.database,
+    backup: () => DatabaseHelper.instance.backup('tutupbuku'),
+  );
 
   Future<List<TransactionModel>> transactions() async {
     final db = await _open();
@@ -158,6 +192,72 @@ class AccountingRepository {
           : buildReport(input.txs, input.assets,
               asOf: DateTime(from.year, from.month, from.day - 1)),
     );
+  }
+
+  /// Periksa apakah periode s.d. [until] boleh ditutup, dan hitung labanya lewat mesin.
+  Future<ClosingPreview> previewClosing(DateTime until, {DateTime? today}) async {
+    until = _hari(until);
+    final lock = await lockedUntil();
+    if (lock != null && !until.isAfter(lock)) {
+      throw ClosingRejectedException('Periode sampai ${_iso(lock)} sudah ditutup buku. '
+          'Tutup buku berikutnya harus bertanggal sesudah ${_iso(lock)}.');
+    }
+    if (until.isAfter(_hari(today ?? DateTime.now()))) {
+      throw ClosingRejectedException('Tanggal tutup buku tidak boleh sesudah hari ini.');
+    }
+    final from = lock == null ? null : DateTime(lock.year, lock.month, lock.day + 1);
+    final input = buildEngineInput(await transactions(), await fixedAssets());
+    final r = buildReport(input.txs, input.assets, asOf: until, from: from);
+    if (r.perluDitinjau.isNotEmpty) {
+      throw ClosingRejectedException('${r.peringatanTinjau!.jumlahTransaksi} transaksi sampai '
+          '${_iso(until)} masih perlu ditinjau. Ubah atau hapus dulu, karena sesudah '
+          'tutup buku transaksi itu terkunci.');
+    }
+    if (!r.balanced) {
+      throw ClosingRejectedException('Laporan per ${_iso(until)} tidak seimbang; tutup buku dibatalkan.');
+    }
+    return ClosingPreview(from, until, r);
+  }
+
+  /// Tutup buku non-destruktif: backup file DB, catat entri tutup_buku (laba periode)
+  /// ke Saldo Laba, simpan period_closings, kunci periode. Tidak ada transaksi dihapus.
+  Future<ClosingResult> closeBook(DateTime until, {DateTime? today}) async {
+    final backup = _backup;
+    if (backup == null) throw StateError('tutup buku butuh fungsi backup');
+    final p = await previewClosing(until, today: today);
+    final backupPath = await backup();
+    final assets = await fixedAssets();
+    final db = await _open();
+    final txId = await db.transaction((txn) async {
+      final entri = buildClosingEntry(p.report, id: 0, date: p.until);
+      final id = await txn.insert('transactions', {
+        'tx_type': entri.type.code,
+        'amount': entri.amount,
+        'date': _iso(p.until),
+        'category': 'Tutup Buku',
+        'description': 'Laba (rugi) periode ${p.from == null ? 'awal' : _iso(p.from!)} '
+            's.d. ${_iso(p.until)} dicatat ke Saldo Laba',
+      });
+      // D5 sebelum commit: total aset dan saldo laba tidak berubah.
+      final rows = (await txn.query('transactions')).map(TransactionModel.fromMap).toList();
+      final input = buildEngineInput(rows, assets);
+      final after = buildReport(input.txs, input.assets, asOf: p.until, from: p.from);
+      if (after.totalAset != p.report.totalAset ||
+          after.saldoLaba != p.report.saldoLaba ||
+          after.perluDitinjau.isNotEmpty) {
+        throw StateError('tutup buku mengubah total aset/saldo laba; dibatalkan');
+      }
+      await txn.insert('period_closings', {
+        'closed_until': _iso(p.until),
+        'closing_tx_id': id,
+        'laba_bersih': p.report.labaBersih,
+        'total_aset': p.report.totalAset,
+        'saldo_laba': p.report.saldoLaba,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      return id;
+    });
+    return ClosingResult(p, backupPath, txId);
   }
 
   /// Kolom perlu_ditinjau/review_note = cermin hasil mesin atas seluruh riwayat.
