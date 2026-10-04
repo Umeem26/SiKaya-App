@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ternak_cibeusi_app
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sama dengan versi lokal (flutter --version): 3.47.5 stable.
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.5
+          channel: stable
+          cache: true
+
+      # Tes DB memakai sqflite_common_ffi, yang memuat libsqlite3 dari sistem.
+      - run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+        working-directory: .
+
+      - run: flutter pub get
+      - run: flutter analyze
+      # Tes unit + widget saja; integration_test/ butuh emulator dan dijalankan lokal.
+      - run: flutter test
