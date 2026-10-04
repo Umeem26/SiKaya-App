@@ -1,4 +1,4 @@
-package com.example.ternak_cibeusi_app
+package io.github.umeem26.sikaya
 
 import io.flutter.embedding.android.FlutterActivity
 
