@@ -15,7 +15,7 @@ Diputuskan kemudian:
 - **Aturan penyusutan:** mulai bulan "tanggal siap dipakai" (default = tanggal beli), bulan penuh, berhenti saat akumulasi = harga perolehan, sisa pembulatan di bulan terakhir. Ditulis di CaLK.
 - **Tabel kasus tepi (bagian 4) disetujui**, dengan syarat tiap kasus memuat angka hitung manual (sudah ditambahkan).
 
-**Status:** tahap 1 dan 3 (mesin) selesai. Tahap 2 selesai: DB v2 (`lib/database/schema.dart`, backup otomatis file v1), repository `lib/accounting/repository.dart`, laporan/dashboard membaca dari repository. Belum: tutup buku (tahap 4), form input tipe transaksi (simpan di form lama dinonaktifkan sementara).
+**Status:** tahap 1 dan 3 (mesin) selesai. Tahap 2 selesai: DB v2 (`lib/database/schema.dart`, backup otomatis file v1), repository `lib/accounting/repository.dart`, laporan/dashboard membaca dari repository. Tahap 4 selesai: tutup buku non-destruktif (`AccountingRepository.closeBook`, backup file DB, `period_closings`, kunci periode; tes `test/accounting/closing_test.dart`). Tahap 5: form per tipe transaksi dari tabel `lib/accounting/tx_form_spec.dart` (tes `tx_form_spec_test.dart`), pilihan periode laporan; uji manual di perangkat belum.
 
 ## 2. Prinsip desain
 1. **Uang = bilangan bulat Rupiah** (`INTEGER`), bukan `double`. Sekarang `amount`/`price` bertipe REAL di `lib/database/database_helper.dart` dan `lib/transaction_model.dart`.
