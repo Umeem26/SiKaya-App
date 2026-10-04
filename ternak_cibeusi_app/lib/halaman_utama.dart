@@ -1,4 +1,6 @@
 // Kerangka aplikasi: navigasi bawah berlabel (UI-PLAN.md bagian 3).
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import 'accounting/repository.dart';
@@ -23,7 +25,7 @@ const tujuanNavigasi = [
 ];
 
 class HalamanUtama extends StatefulWidget {
-  const HalamanUtama({super.key, this.muatBeranda, this.repo, this.hariIni});
+  const HalamanUtama({super.key, this.muatBeranda, this.repo, this.hariIni, this.bagikanPdf});
 
   /// Pengganti pemuat data Beranda (tes); null = data aplikasi.
   final Future<RingkasanBeranda> Function()? muatBeranda;
@@ -33,6 +35,9 @@ class HalamanUtama extends StatefulWidget {
 
   /// Pengganti "sekarang" (tes); null = DateTime.now().
   final DateTime? hariIni;
+
+  /// Pengganti lembar bagikan PDF laporan (tes); null = lembar bagikan Android.
+  final Future<void> Function(Uint8List pdf, String namaFile)? bagikanPdf;
 
   @override
   State<HalamanUtama> createState() => _HalamanUtamaState();
@@ -54,7 +59,7 @@ class _HalamanUtamaState extends State<HalamanUtama> {
           onLihatCatatan: () => _pindah(1),
         ),
       1 => ListFinancePage(repo: widget.repo, hariIni: widget.hariIni),
-      2 => ReportPage(repo: widget.repo, hariIni: widget.hariIni),
+      2 => ReportPage(repo: widget.repo, hariIni: widget.hariIni, bagikan: widget.bagikanPdf),
       _ => LainnyaPage(repo: widget.repo, hariIni: widget.hariIni),
     };
     return Scaffold(

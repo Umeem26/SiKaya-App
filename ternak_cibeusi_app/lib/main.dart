@@ -20,7 +20,10 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.home = const SplashPage()});
+
+  /// Halaman awal; integration test memulai dari onboarding dengan layanan pengganti.
+  final Widget home;
 
   // Ukuran huruf mengikuti pengaturan HP: tidak ada builder yang mengubah textScaler.
   @override
@@ -30,7 +33,7 @@ class MyApp extends StatelessWidget {
       title: 'SiKaya',
       theme: temaSikaya(),
       themeMode: ThemeMode.light,
-      home: const SplashPage(),
+      home: home,
     );
   }
 }
