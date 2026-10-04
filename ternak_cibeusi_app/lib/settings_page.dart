@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'database/database_helper.dart';
+import 'accounting/repository.dart';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart'; 
@@ -32,12 +33,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _backupData() async {
      try {
-      final db = DatabaseHelper.instance;
-      final trans = await db.getTransactions();
+      final trans = await AccountingRepository.instance.transactions();
       if (trans.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Data kosong."))); return; }
       List<List<dynamic>> rows = [];
-      rows.add(["Tanggal", "Jenis", "Kategori", "Nominal", "Deskripsi"]);
-      for (var t in trans) { rows.add([t.date, t.type, t.category, t.amount, t.description]); }
+      rows.add(["Tanggal", "Tipe", "Kategori", "Nominal", "Deskripsi"]);
+      for (var t in trans) { rows.add([t.date, t.txType.code, t.category, t.amount, t.description]); }
       String csvData = const ListToCsvConverter().convert(rows);
       String? filePath;
       String fileName = "Backup_Ternak_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv";

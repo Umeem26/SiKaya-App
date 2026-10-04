@@ -11,6 +11,7 @@ import 'list_finance_page.dart';
 import 'report_page.dart';
 import 'settings_page.dart';
 import 'database/database_helper.dart';
+import 'accounting/repository.dart';
 import 'splash_page.dart';
 
 void main() async {
@@ -80,15 +81,15 @@ class _HomePageState extends State<HomePage> {
     for (var a in assets) {
       if (a.kategori.contains('Ternak')) countTernak += a.jumlah;
     }
-    final cashflow = await db.getSaldoCashflow();
+    final kas = (await AccountingRepository.instance.loadReport(asOf: DateTime.now())).kas;
 
     if (mounted) {
       setState(() {
         _ownerName = savedName ?? "Juragan Ternak"; 
         _totalTernak = countTernak;
-        _totalMasuk = cashflow['in']!;
-        _totalKeluar = cashflow['out']!;
-        _saldoKas = cashflow['total']!;
+        _totalMasuk = kas.masuk.toDouble();
+        _totalKeluar = kas.keluar.toDouble();
+        _saldoKas = kas.saldo.toDouble();
         _lastUpdate = DateFormat('HH:mm').format(DateTime.now());
       });
     }

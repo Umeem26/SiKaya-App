@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'database/database_helper.dart';
+import 'accounting/engine.dart' show roundHalfAwayFromZero;
+import 'accounting/repository.dart';
 import 'transaction_model.dart';
 import 'form_finance_page.dart';
 
@@ -12,7 +13,7 @@ class ListFinancePage extends StatefulWidget {
 }
 
 class _ListFinancePageState extends State<ListFinancePage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final AccountingRepository _repo = AccountingRepository.instance;
   List<TransactionModel> _transactions = [];
   bool _isLoading = true;
 
@@ -31,15 +32,15 @@ class _ListFinancePageState extends State<ListFinancePage> {
 
   void _refreshTransactions() async {
     setState(() => _isLoading = true);
-    final data = await _dbHelper.getTransactions();
-    final cashflow = await _dbHelper.getSaldoCashflow();
+    final data = await _repo.transactions();
+    final kas = (await _repo.loadReport(asOf: DateTime.now())).kas;
 
     if (mounted) {
       setState(() {
         _transactions = data;
-        _pemasukan = cashflow['in']!;
-        _pengeluaran = cashflow['out']!;
-        _totalSaldo = cashflow['total']!;
+        _pemasukan = kas.masuk.toDouble();
+        _pengeluaran = kas.keluar.toDouble();
+        _totalSaldo = kas.saldo.toDouble();
         _isLoading = false;
       });
     }
@@ -47,8 +48,9 @@ class _ListFinancePageState extends State<ListFinancePage> {
 
   String _fmtUang(double amount) => NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
   
-  String _fmtDetail(double? price, int? qty) {
-    if (price == null || qty == null || price == 0) return "";
+  String _fmtDetail(int amount, int? qty) {
+    if (qty == null || qty == 0 || amount == 0) return "";
+    final price = roundHalfAwayFromZero(amount, qty);
     final fmtPrice = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(price);
     return "(@ $fmtPrice x $qty)";
   }
@@ -60,20 +62,27 @@ class _ListFinancePageState extends State<ListFinancePage> {
     } catch (e) { return dateStr; }
   }
 
+  String _label(TransactionModel t) => t.category.isNotEmpty ? t.category : t.txType.code;
+
   void _showDeleteDialog(TransactionModel item) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text("Hapus Transaksi?"),
-        content: Text("Yakin ingin menghapus ${item.category}?"),
+        content: Text("Yakin ingin menghapus ${_label(item)}?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal", style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
-              await _dbHelper.deleteTransaction(item.id!);
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(ctx);
+              try {
+                await _repo.deleteTransaction(item.id!);
+              } catch (_) {
+                messenger.showSnackBar(const SnackBar(content: Text("Tidak bisa dihapus: transaksi dirujuk retur/pelunasan lain.")));
+              }
               _refreshTransactions();
             },
             child: const Text("Hapus", style: TextStyle(color: Colors.white)),
@@ -137,8 +146,8 @@ class _ListFinancePageState extends State<ListFinancePage> {
                         itemCount: _transactions.length,
                         itemBuilder: (context, index) {
                           final item = _transactions[index];
-                          bool isMasuk = item.type == 'IN';
-                          bool isNonTunai = item.category.contains("Kredit") || item.category.contains("Pemakaian") || item.category.contains("Biaya DOC");
+                          bool isMasuk = item.arahKas > 0;
+                          bool isNonTunai = item.arahKas == 0;
                           Color statusColor = isNonTunai ? Colors.orange : (isMasuk ? Colors.green : Colors.redAccent);
 
                           return Container(
@@ -162,9 +171,11 @@ class _ListFinancePageState extends State<ListFinancePage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(item.category, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF2D3436))),
+                                        Text(_label(item), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF2D3436))),
+                                        if (item.perluDitinjau)
+                                          Text("Perlu ditinjau: ${item.reviewNote ?? ''}", style: const TextStyle(color: Colors.orange, fontSize: 11)),
                                         if (item.qty != null && item.qty! > 0)
-                                          Text(_fmtDetail(item.price, item.qty), style: const TextStyle(color: Colors.blueGrey, fontSize: 11, fontStyle: FontStyle.italic)),
+                                          Text(_fmtDetail(item.amount, item.qty), style: const TextStyle(color: Colors.blueGrey, fontSize: 11, fontStyle: FontStyle.italic)),
                                         const SizedBox(height: 4),
                                         Text(_fmtTanggal(item.date), style: TextStyle(color: Colors.grey[400], fontSize: 11)),
                                       ],
@@ -173,7 +184,7 @@ class _ListFinancePageState extends State<ListFinancePage> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text("${isMasuk ? '+' : '-'} ${_fmtUang(item.amount).replaceAll('Rp ', '')}", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: statusColor)),
+                                      Text("${isMasuk ? '+' : '-'} ${_fmtUang(item.amount.toDouble()).replaceAll('Rp ', '')}", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: statusColor)),
                                       const SizedBox(height: 5),
                                       Row(children: [
                                         GestureDetector(onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => FormFinancePage(transaction: item))); _refreshTransactions(); }, child: Icon(Icons.edit, size: 18, color: Colors.grey[400])),

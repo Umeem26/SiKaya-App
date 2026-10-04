@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'database/database_helper.dart';
 import 'transaction_model.dart';
 
 class FormFinancePage extends StatefulWidget {
@@ -33,11 +32,8 @@ class _FormFinancePageState extends State<FormFinancePage> {
   void initState() {
     super.initState();
     if (widget.transaction != null) {
-      _selectedType = widget.transaction!.type;
-      _selectedCategory = widget.transaction!.category;
       _qtyController.text = widget.transaction!.qty?.toString() ?? '1';
-      _priceController.text = _fmt(widget.transaction!.price ?? widget.transaction!.amount);
-      _totalController.text = _fmt(widget.transaction!.amount);
+      _totalController.text = _fmt(widget.transaction!.amount.toDouble());
       _descController.text = widget.transaction!.description;
       _dateController.text = widget.transaction!.date;
     } else {
@@ -54,31 +50,12 @@ class _FormFinancePageState extends State<FormFinancePage> {
 
   String _fmt(double val) => NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0).format(val);
 
-  void _saveTransaction() async {
-    if (_formKey.currentState!.validate()) {
-      String cleanPrice = _priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      String cleanTotal = _totalController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      double price = double.tryParse(cleanPrice) ?? 0;
-      double total = double.tryParse(cleanTotal) ?? 0;
-      int qty = int.tryParse(_qtyController.text) ?? 1;
-      if (total == 0 && price > 0) total = price * qty;
-
-      final transaction = TransactionModel(
-        id: widget.transaction?.id,
-        type: _selectedType,
-        amount: total,
-        category: _selectedCategory,
-        description: _descController.text,
-        date: _dateController.text,
-        qty: qty,
-        price: price,
-      );
-
-      if (widget.transaction == null) await DatabaseHelper.instance.insertTransaction(transaction);
-      else await DatabaseHelper.instance.updateTransaction(transaction);
-      if (!mounted) return;
-      Navigator.pop(context, true);
-    }
+  // DB v2 butuh tipe transaksi eksplisit (tx_type). Form kategori lama tidak
+  // dipetakan; penyimpanan dinonaktifkan sampai form tipe transaksi (sesi berikutnya).
+  void _saveTransaction() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Pencatatan sementara dinonaktifkan: form tipe transaksi baru sedang disiapkan.'),
+    ));
   }
 
   @override

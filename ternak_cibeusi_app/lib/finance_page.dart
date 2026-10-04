@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; 
-import 'database/database_helper.dart';
+import 'accounting/repository.dart';
 import 'transaction_model.dart';
 import 'form_finance_page.dart';
 
@@ -12,7 +12,7 @@ class FinancePage extends StatefulWidget {
 }
 
 class _FinancePageState extends State<FinancePage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final AccountingRepository _repo = AccountingRepository.instance;
   
   // WARNA POLBAN
   final Color polbanBlue = const Color(0xFF1E549F);
@@ -32,18 +32,10 @@ class _FinancePageState extends State<FinancePage> {
 
   void _refreshData() async {
     setState(() => _isLoading = true);
-    final data = await _dbHelper.getTransactions();
-    
-    double totalMasuk = 0;
-    double totalKeluar = 0;
-
-    for (var item in data) {
-      if (item.type == 'IN') {
-        totalMasuk += item.amount;
-      } else {
-        totalKeluar += item.amount;
-      }
-    }
+    final data = await _repo.transactions();
+    final kas = (await _repo.loadReport(asOf: DateTime.now())).kas;
+    final double totalMasuk = kas.masuk.toDouble();
+    final double totalKeluar = kas.keluar.toDouble();
 
     if (mounted) {
       setState(() {
@@ -61,7 +53,11 @@ class _FinancePageState extends State<FinancePage> {
   }
 
   void _deleteData(int id) async {
-    await _dbHelper.deleteTransaction(id);
+    try {
+      await _repo.deleteTransaction(id);
+    } catch (_) {
+      // dirujuk retur/pelunasan lain; baris tetap ada
+    }
     _refreshData(); 
   }
 
@@ -197,7 +193,7 @@ class _FinancePageState extends State<FinancePage> {
                     itemCount: _transactions.length,
                     itemBuilder: (context, index) {
                       final item = _transactions[index];
-                      final isMasuk = item.type == 'IN';
+                      final isMasuk = item.arahKas > 0;
                       
                       return Container(
                         margin: const EdgeInsets.only(bottom: 15),
@@ -226,7 +222,7 @@ class _FinancePageState extends State<FinancePage> {
                             ),
                           ),
                           title: Text(
-                            item.category, 
+                            item.category.isNotEmpty ? item.category : item.txType.code,
                             style: TextStyle(fontWeight: FontWeight.bold, color: polbanBlue),
                           ),
                           subtitle: Column(
@@ -242,7 +238,7 @@ class _FinancePageState extends State<FinancePage> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                (isMasuk ? '+ ' : '- ') + _formatCurrency(item.amount),
+                                (isMasuk ? '+ ' : '- ') + _formatCurrency(item.amount.toDouble()),
                                 style: TextStyle(
                                   color: isMasuk ? Colors.green : Colors.red,
                                   fontWeight: FontWeight.bold,

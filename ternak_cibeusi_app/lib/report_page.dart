@@ -1,8 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'database/database_helper.dart';
 import 'asset_model.dart';
+import 'accounting/models.dart';
+import 'accounting/repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:pdf/pdf.dart';
@@ -25,8 +26,8 @@ class _ReportPageState extends State<ReportPage> {
   bool _isLoading = true;
   String _ownerName = "Nama Peternak";
 
-  Map<String, double> _lr = {};
-  Map<String, double> _nr = {};
+  late Report _r;
+  DateTime _asOf = DateTime.now();
   List<AssetModel> _operationalAssets = [];
 
   @override
@@ -41,22 +42,75 @@ class _ReportPageState extends State<ReportPage> {
     final prefs = await SharedPreferences.getInstance();
     String name = prefs.getString('owner_name') ?? "Nama Peternak";
 
-    final lr = await _dbHelper.getLabaRugiDetail();
-    final nr = await _dbHelper.getNeracaDetail();
+    // Laba Rugi sejak awal s.d. hari ini; Posisi Keuangan per hari ini.
+    final asOf = DateTime.now();
+    final laporan = await AccountingRepository.instance.loadReport(asOf: asOf);
     final assets = await _dbHelper.readAllAssets();
     
     if (mounted) {
       setState(() {
         _ownerName = name;
-        _lr = lr;
-        _nr = nr;
+        _r = laporan.report;
+        _asOf = asOf;
         _operationalAssets = assets.where((a) => a.kategori == 'Operasional Habis Pakai').toList();
         _isLoading = false;
       });
     }
   }
 
-  String _fmt(double? val) => NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(val ?? 0);
+  String _fmt(int? val) => NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(val ?? 0);
+
+  static const _labelBeban = {
+    ExpenseKind.bpp: 'Beban Pokok Penjualan (Ternak)',
+    ExpenseKind.pakan: 'Beban Pakan',
+    ExpenseKind.obat: 'Beban Obat & Vitamin',
+    ExpenseKind.listrikAir: 'Beban Listrik dan Air',
+    ExpenseKind.tenagaKerja: 'Beban Tenaga Kerja',
+    ExpenseKind.perawatan: 'Beban Perawatan Kandang',
+    ExpenseKind.penyusutan: 'Beban Penyusutan',
+    ExpenseKind.bunga: 'Beban Bunga',
+    ExpenseKind.kerugianTernak: 'Beban Kerugian Ternak',
+    ExpenseKind.lain: 'Beban Lain-lain',
+  };
+
+  List<MapEntry<String, int>> get _barisBeban => [
+        for (final k in ExpenseKind.values)
+          if (_r.beban[k] != null) MapEntry(_labelBeban[k]!, _r.beban[k]!),
+      ];
+
+  List<(String, String, int)> get _barisAset => [
+        ('1-1001', 'Kas', _r.kas),
+        ('1-1003', 'Piutang Usaha', _r.piutang),
+        ('1-1004', 'Persediaan Pakan', _r.persediaan[StockItem.pakan] ?? 0),
+        ('1-1007', 'Persediaan Obat & Vitamin', _r.persediaan[StockItem.obat] ?? 0),
+        ('1-1008', 'Persediaan Ternak', _r.persediaan[StockItem.ternak] ?? 0),
+        ('1-2001', 'Aset Tetap (Harga Perolehan)', _r.asetTetapBruto),
+        ('1-2002', 'Akumulasi Penyusutan', -_r.akumulasiPenyusutan),
+      ];
+
+  int get _ekuitas => _r.modalDisetor + _r.saldoLaba;
+
+  /// Peringatan: transaksi perlu_ditinjau (tidak dihitung) dan laporan tidak seimbang.
+  Widget _peringatan() {
+    final w = _r.peringatanTinjau;
+    if (w == null && _r.balanced) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.orange[50], border: Border.all(color: Colors.orange)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (!_r.balanced)
+          Text("Laporan TIDAK seimbang: aset ${_fmt(_r.totalAset)} vs liabilitas + ekuitas ${_fmt(_r.totalLiabilitasEkuitas)}.",
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+        if (w != null) ...[
+          Text(w.pesan, style: const TextStyle(fontWeight: FontWeight.bold)),
+          for (final f in _r.perluDitinjau)
+            Text("- Transaksi #${f.txId}: ${f.detail} (${_fmt(f.nilai)})", style: const TextStyle(fontSize: 12)),
+        ],
+      ]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +169,7 @@ class _ReportPageState extends State<ReportPage> {
               tabs: const [Tab(text: "LABA RUGI"), Tab(text: "MODAL"), Tab(text: "NERACA")],
             ),
           ),
+          _peringatan(),
           Expanded(
             child: TabBarView(children: [_tabLabaRugi(), _tabModal(), _tabNeraca()]),
           )
@@ -123,7 +178,7 @@ class _ReportPageState extends State<ReportPage> {
     );
   }
 
-  // --- TAB LABA RUGI (FORMAT BARU - SESUAI EXCEL) ---
+  // --- TAB LABA RUGI ---
   Widget _tabLabaRugi() {
     return _excelScaffold(
       onPrint: _printLabaRugiPDF,
@@ -134,87 +189,69 @@ class _ReportPageState extends State<ReportPage> {
           _excelHeader(_ownerName, "Laporan Laba Rugi"),
           const SizedBox(height: 20),
           _boldText("A. Pendapatan"),
-          _excelRow("Penjualan Ternak", _lr['revTernak']),
-          _excelRow("Pendapatan Lain-lain", _lr['revLain'], showUnderline: true),
-          _excelTotalRow("Total Pendapatan", _lr['totalRev']),
+          _excelRow("Pendapatan Penjualan", _r.pendapatan, showUnderline: true),
+          _excelTotalRow("Total Pendapatan", _r.pendapatan),
           const SizedBox(height: 20),
-          _boldText("B. Biaya Produksi Ternak"),
-          // Urutan Sesuai Excel
-          _excelRow("Biaya DOC", _lr['expDOC']), 
-          _excelRow("Biaya Pakan", _lr['expPakan']),
-          _excelRow("Biaya Obat & Vitamin", _lr['expObat']),
-          _excelRow("Biaya Listrik dan Air", _lr['expListrik']),
-          _excelRow("Biaya Tenaga Kerja", _lr['expGaji']),
-          _excelRow("Biaya Perawatan Kandang (Perbaikan)", _lr['expRawat']),
-          _excelRow("Biaya Lain-lain", _lr['expLain'], showUnderline: true),
-          _excelTotalRow("Total Biaya Produksi", _lr['totalExp']),
+          _boldText("B. Beban"),
+          for (final b in _barisBeban) _excelRow(b.key, b.value),
+          _excelTotalRow("Total Beban", _r.bebanTotal),
           const SizedBox(height: 30),
-          _excelGrandTotal("LABA/RUGI", _lr['labaBersih']),
+          _excelGrandTotal("LABA (RUGI) BERSIH", _r.labaBersih),
           const SizedBox(height: 80),
         ],
       ),
     );
   }
 
-  // --- TAB MODAL (FORMAT BARU) ---
+  // --- TAB MODAL (ekuitas: modal disetor + saldo laba) ---
   Widget _tabModal() {
     return _excelScaffold(
       onPrint: _printModalPDF,
-      title: "Laporan Perubahan Modal",
+      title: "Laporan Perubahan Ekuitas",
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _excelHeader(_ownerName, "Laporan Perubahan Modal"),
+          _excelHeader(_ownerName, "Laporan Perubahan Ekuitas"),
           const SizedBox(height: 20),
-          _boldText("A. Modal Awal"),
-          _excelRow("Modal Awal Siklus", _nr['modalAwal']),
-          _excelTotalRow("Total Modal Awal Siklus", _nr['modalAwal']),
+          _boldText("A. Modal Disetor"),
+          _excelTotalRow("Modal Disetor", _r.modalDisetor),
           const SizedBox(height: 20),
-          _boldText("B. Penambahan / Pengurangan Modal"),
-          _excelRow("Laba/Rugi", _lr['labaBersih']),
-          _excelRow("(-Ambil Uang Pribadi)", _nr['prive'], showUnderline: true),
-          _excelTotalRow("Total Penambahan / Pengurangan", _lr['labaBersih']! - _nr['prive']!),
+          _boldText("B. Saldo Laba"),
+          _excelRow("Laba (Rugi) Bersih", _r.labaBersih),
+          _excelRow("Prive (Penarikan Pemilik)", -_r.prive, showUnderline: true),
+          _excelTotalRow("Saldo Laba", _r.saldoLaba),
           const SizedBox(height: 30),
-          _excelGrandTotal("MODAL AKHIR PERIODE", _nr['modalAkhir']),
+          _excelGrandTotal("TOTAL EKUITAS", _ekuitas),
           const SizedBox(height: 80),
         ],
       ),
     );
   }
 
-  // --- TAB NERACA (FORMAT BARU) ---
+  // --- TAB NERACA (Laporan Posisi Keuangan) ---
   Widget _tabNeraca() {
-    double totalAset = _nr['kas']! + _nr['bank']! + _nr['piutang']! + _nr['sediaPakan']! + _nr['sediaObat']! + _nr['sediaTernak']! + _nr['perlengkapan']! + _nr['peralatan']!;
-    double totalPasiva = _nr['utang']! + _nr['modalAkhir']!;
-
     return _excelScaffold(
-      onPrint: () => _printNeracaPDF(totalAset, totalPasiva),
-      title: "Laporan Posisi Keuangan (Neraca)",
+      onPrint: _printNeracaPDF,
+      title: "Laporan Posisi Keuangan",
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _excelHeader(_ownerName, "Laporan Posisi Keuangan (Neraca)"),
+          _excelHeader(_ownerName, "Laporan Posisi Keuangan"),
           const SizedBox(height: 20),
           _boldText("ASET"),
-          _neracaRow("1-1001", "Kas", _nr['kas']),
-          _neracaRow("1-1002", "Bank", _nr['bank']),
-          _neracaRow("1-1003", "Piutang Ternak", _nr['piutang']),
-          _neracaRow("1-1004", "Persediaan Pakan", _nr['sediaPakan']),
-          _neracaRow("1-1007", "Persediaan Obat & Vitamin", _nr['sediaObat']),
-          _neracaRow("1-1008", "Persediaan Ternak", _nr['sediaTernak']),
-          _neracaRow("1-1009", "Perlengkapan Kandang", _nr['perlengkapan']),
-          _neracaRow("1-2001", "Peralatan Kandang", _nr['peralatan']),
+          for (final a in _barisAset) _neracaRow(a.$1, a.$2, a.$3),
           const Divider(thickness: 2),
-          _excelGrandTotal("TOTAL ASET", totalAset),
+          _excelGrandTotal("TOTAL ASET", _r.totalAset),
           const SizedBox(height: 30),
-          _boldText("HUTANG & EKUITAS"),
-          const Text("Hutang", style: TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
-          _neracaRow("2-1001", "Utang Usaha", _nr['utang']),
+          _boldText("LIABILITAS & EKUITAS"),
+          const Text("Liabilitas", style: TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+          _neracaRow("2-1001", "Utang", _r.utang),
           const SizedBox(height: 10),
-          const Text("Modal", style: TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
-          _neracaRow("3-1001", "Modal Peternak", _nr['modalAkhir']),
+          const Text("Ekuitas", style: TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+          _neracaRow("3-1001", "Modal Disetor", _r.modalDisetor),
+          _neracaRow("3-2001", "Saldo Laba", _r.saldoLaba),
           const Divider(thickness: 2),
-          _excelGrandTotal("TOTAL HUTANG & EKUITAS", totalPasiva),
+          _excelGrandTotal("TOTAL LIABILITAS & EKUITAS", _r.totalLiabilitasEkuitas),
           const SizedBox(height: 80),
         ],
       ),
@@ -233,14 +270,14 @@ class _ReportPageState extends State<ReportPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(border: Border.all(color: Colors.black)),
-      child: Column(children: [Text(t1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text(t2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text("Untuk Periode Yang Berakhir ${DateFormat('dd MMMM yyyy').format(DateTime.now())}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))]),
+      child: Column(children: [Text(t1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text(t2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text("Untuk Periode Yang Berakhir ${DateFormat('dd MMMM yyyy').format(_asOf)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))]),
     );
   }
   Widget _boldText(String t) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold)));
-  Widget _excelRow(String label, double? val, {bool showUnderline = false}) => Padding(padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label), Container(decoration: showUnderline ? const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.black))) : null, child: Text(_fmt(val)))]));
-  Widget _neracaRow(String code, String label, double? val) => Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [SizedBox(width: 60, child: Text(code, style: const TextStyle(fontSize: 12, color: Colors.grey))), Expanded(child: Text(label)), Text(_fmt(val))]));
-  Widget _excelTotalRow(String label, double? val) => Padding(padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: const TextStyle(fontWeight: FontWeight.bold)), Text(_fmt(val), style: const TextStyle(fontWeight: FontWeight.bold))]));
-  Widget _excelGrandTotal(String label, double? val) => Container(padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10), decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.black, width: 2), bottom: BorderSide(color: Colors.black, width: 2))), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text(_fmt(val), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]));
+  Widget _excelRow(String label, int? val, {bool showUnderline = false}) => Padding(padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label), Container(decoration: showUnderline ? const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.black))) : null, child: Text(_fmt(val)))]));
+  Widget _neracaRow(String code, String label, int? val) => Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [SizedBox(width: 60, child: Text(code, style: const TextStyle(fontSize: 12, color: Colors.grey))), Expanded(child: Text(label)), Text(_fmt(val))]));
+  Widget _excelTotalRow(String label, int? val) => Padding(padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: const TextStyle(fontWeight: FontWeight.bold)), Text(_fmt(val), style: const TextStyle(fontWeight: FontWeight.bold))]));
+  Widget _excelGrandTotal(String label, int? val) => Container(padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10), decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.black, width: 2), bottom: BorderSide(color: Colors.black, width: 2))), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text(_fmt(val), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]));
   Widget _buildAssetSection() {return Scaffold(body: _operationalAssets.isEmpty ? const Center(child: Text("Belum ada data", style: TextStyle(color: Colors.grey))) : ListView.builder(padding: const EdgeInsets.all(20), itemCount: _operationalAssets.length, itemBuilder: (context, index) { final item = _operationalAssets[index]; return Card(child: ListTile(leading: const Icon(Icons.inventory, color: Colors.orange), title: Text(item.nama, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text("${item.jumlah} ${item.satuan}"))); },));}
 
   // --- PDF GENERATOR (Update Format PDF) ---
@@ -252,44 +289,36 @@ class _ReportPageState extends State<ReportPage> {
       child: pw.Column(children: [
         pw.Text(_ownerName, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
         pw.Text(title, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-        pw.Text("Untuk Periode Yang Berakhir ${DateFormat('dd MMMM yyyy').format(DateTime.now())}", style: pw.TextStyle(fontSize: 12)),
+        pw.Text("Untuk Periode Yang Berakhir ${DateFormat('dd MMMM yyyy').format(_asOf)}", style: pw.TextStyle(fontSize: 12)),
       ]),
     );
   }
 
-  Future<void> _printLabaRugiPDF() async { 
-    final pdf = pw.Document(); 
+  Future<void> _printLabaRugiPDF() async {
+    final pdf = pw.Document();
     pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      _pdfHeaderBox("Laporan Laba Rugi"), 
-      pw.SizedBox(height: 20), 
-      _pdfBold("A. Pendapatan"), 
-      _pdfRow("Penjualan Ternak", _lr['revTernak']), 
-      _pdfRow("Pendapatan Lain-lain", _lr['revLain'], underline: true), 
-      _pdfTotalRow("Total Pendapatan", _lr['totalRev']), 
-      pw.SizedBox(height: 15), 
-      _pdfBold("B. Biaya Produksi Ternak"), 
-      _pdfRow("Biaya DOC", _lr['expDOC']), 
-      _pdfRow("Biaya Pakan", _lr['expPakan']), 
-      _pdfRow("Biaya Obat & Vitamin", _lr['expObat']), 
-      _pdfRow("Biaya Listrik dan Air", _lr['expListrik']), 
-      _pdfRow("Biaya Tenaga Kerja", _lr['expGaji']), 
-      _pdfRow("Biaya Perawatan Kandang (Perbaikan)", _lr['expRawat']), 
-      _pdfRow("Biaya Lain-lain", _lr['expLain'], underline: true), 
-      _pdfTotalRow("Total Biaya Produksi", _lr['totalExp']), 
-      pw.SizedBox(height: 20), 
-      _pdfGrandTotal("LABA/RUGI", _lr['labaBersih']),
-    ]))); 
-    await Printing.layoutPdf(onLayout: (format) async => pdf.save()); 
+      _pdfHeaderBox("Laporan Laba Rugi"),
+      pw.SizedBox(height: 20),
+      _pdfBold("A. Pendapatan"),
+      _pdfRow("Pendapatan Penjualan", _r.pendapatan, underline: true),
+      _pdfTotalRow("Total Pendapatan", _r.pendapatan),
+      pw.SizedBox(height: 15),
+      _pdfBold("B. Beban"),
+      for (final b in _barisBeban) _pdfRow(b.key, b.value),
+      _pdfTotalRow("Total Beban", _r.bebanTotal),
+      pw.SizedBox(height: 20),
+      _pdfGrandTotal("LABA (RUGI) BERSIH", _r.labaBersih),
+    ])));
+    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
-  
-  // (Fungsi Print Modal & Neraca disesuaikan juga)
-  Future<void> _printModalPDF() async { final pdf = pw.Document(); pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [_pdfHeaderBox("Laporan Perubahan Modal"), pw.SizedBox(height: 20), _pdfBold("A. Modal Awal"), _pdfRow("Modal Awal Siklus", _nr['modalAwal']), _pdfTotalRow("Total Modal Awal Siklus", _nr['modalAwal']), pw.SizedBox(height: 15), _pdfBold("B. Penambahan / Pengurangan Modal"), _pdfRow("Laba/Rugi", _lr['labaBersih']), _pdfRow("(-Ambil Uang Pribadi)", _nr['prive'], underline: true), _pdfTotalRow("Total Penambahan / Pengurangan", _lr['labaBersih']! - _nr['prive']!), pw.SizedBox(height: 20), _pdfGrandTotal("MODAL AKHIR PERIODE", _nr['modalAkhir'])]))); await Printing.layoutPdf(onLayout: (format) async => pdf.save()); }
-  Future<void> _printNeracaPDF(double totAset, double totPasiva) async { final pdf = pw.Document(); pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [_pdfHeaderBox("Laporan Posisi Keuangan (Neraca)"), pw.SizedBox(height: 20), _pdfBold("ASET"), _pdfRowCode("1-1001", "Kas", _nr['kas']), _pdfRowCode("1-1002", "Bank", _nr['bank']), _pdfRowCode("1-1003", "Piutang Ternak", _nr['piutang']), _pdfRowCode("1-1004", "Persediaan Pakan", _nr['sediaPakan']), _pdfRowCode("1-1007", "Persediaan Obat & Vitamin", _nr['sediaObat']), _pdfRowCode("1-1008", "Persediaan Ternak", _nr['sediaTernak']), _pdfRowCode("1-1009", "Perlengkapan Kandang", _nr['perlengkapan']), _pdfRowCode("1-2001", "Peralatan Kandang", _nr['peralatan']), pw.Divider(), _pdfGrandTotal("TOTAL ASET", totAset), pw.SizedBox(height: 20), _pdfBold("HUTANG & EKUITAS"), _pdfBold("Hutang"), _pdfRowCode("2-1001", "Utang Usaha", _nr['utang']), pw.SizedBox(height: 5), _pdfBold("Modal"), _pdfRowCode("3-1001", "Modal Peternak", _nr['modalAkhir']), pw.Divider(), _pdfGrandTotal("TOTAL HUTANG & EKUITAS", totPasiva)]))); await Printing.layoutPdf(onLayout: (format) async => pdf.save()); }
+
+  Future<void> _printModalPDF() async { final pdf = pw.Document(); pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [_pdfHeaderBox("Laporan Perubahan Ekuitas"), pw.SizedBox(height: 20), _pdfBold("A. Modal Disetor"), _pdfTotalRow("Modal Disetor", _r.modalDisetor), pw.SizedBox(height: 15), _pdfBold("B. Saldo Laba"), _pdfRow("Laba (Rugi) Bersih", _r.labaBersih), _pdfRow("Prive (Penarikan Pemilik)", -_r.prive, underline: true), _pdfTotalRow("Saldo Laba", _r.saldoLaba), pw.SizedBox(height: 20), _pdfGrandTotal("TOTAL EKUITAS", _ekuitas)]))); await Printing.layoutPdf(onLayout: (format) async => pdf.save()); }
+  Future<void> _printNeracaPDF() async { final pdf = pw.Document(); pdf.addPage(pw.Page(build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [_pdfHeaderBox("Laporan Posisi Keuangan"), pw.SizedBox(height: 20), _pdfBold("ASET"), for (final a in _barisAset) _pdfRowCode(a.$1, a.$2, a.$3), pw.Divider(), _pdfGrandTotal("TOTAL ASET", _r.totalAset), pw.SizedBox(height: 20), _pdfBold("LIABILITAS & EKUITAS"), _pdfBold("Liabilitas"), _pdfRowCode("2-1001", "Utang", _r.utang), pw.SizedBox(height: 5), _pdfBold("Ekuitas"), _pdfRowCode("3-1001", "Modal Disetor", _r.modalDisetor), _pdfRowCode("3-2001", "Saldo Laba", _r.saldoLaba), pw.Divider(), _pdfGrandTotal("TOTAL LIABILITAS & EKUITAS", _r.totalLiabilitasEkuitas)]))); await Printing.layoutPdf(onLayout: (format) async => pdf.save()); }
 
   // Helper Widgets PDF (Sama seperti sebelumnya)
   pw.Widget _pdfBold(String t) => pw.Padding(padding: const pw.EdgeInsets.only(bottom: 5), child: pw.Text(t, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)));
-  pw.Widget _pdfRow(String l, double? v, {bool underline = false}) => pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 2, horizontal: 20), child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text(l), pw.Container(decoration: underline ? const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide())) : null, child: pw.Text(_fmt(v)))]));
-  pw.Widget _pdfRowCode(String c, String l, double? v) => pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 2), child: pw.Row(children: [pw.SizedBox(width: 50, child: pw.Text(c, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey))), pw.Expanded(child: pw.Text(l)), pw.Text(_fmt(v))]));
-  pw.Widget _pdfTotalRow(String l, double? v) => pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 20), child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text(l, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)), pw.Text(_fmt(v), style: pw.TextStyle(fontWeight: pw.FontWeight.bold))]));
-  pw.Widget _pdfGrandTotal(String l, double? v) => pw.Container(padding: const pw.EdgeInsets.symmetric(vertical: 5), decoration: const pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(width: 1), bottom: pw.BorderSide(width: 1))), child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text(l, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)), pw.Text(_fmt(v), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14))]));
+  pw.Widget _pdfRow(String l, int? v, {bool underline = false}) => pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 2, horizontal: 20), child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text(l), pw.Container(decoration: underline ? const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide())) : null, child: pw.Text(_fmt(v)))]));
+  pw.Widget _pdfRowCode(String c, String l, int? v) => pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 2), child: pw.Row(children: [pw.SizedBox(width: 50, child: pw.Text(c, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey))), pw.Expanded(child: pw.Text(l)), pw.Text(_fmt(v))]));
+  pw.Widget _pdfTotalRow(String l, int? v) => pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 20), child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text(l, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)), pw.Text(_fmt(v), style: pw.TextStyle(fontWeight: pw.FontWeight.bold))]));
+  pw.Widget _pdfGrandTotal(String l, int? v) => pw.Container(padding: const pw.EdgeInsets.symmetric(vertical: 5), decoration: const pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(width: 1), bottom: pw.BorderSide(width: 1))), child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text(l, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)), pw.Text(_fmt(v), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14))]));
 }
