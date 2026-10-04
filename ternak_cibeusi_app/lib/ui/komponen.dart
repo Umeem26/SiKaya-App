@@ -136,7 +136,12 @@ class KartuAngka extends StatelessWidget {
               Expanded(child: Text(judul, style: t.titleSmall)),
             ]),
             const SizedBox(height: 8),
-            Text(nilai, style: t.headlineSmall!.copyWith(color: w.isi)),
+            // Angka tidak boleh terbelah antarbaris; bila tidak muat (huruf sangat besar) mengecil.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(nilai, maxLines: 1, softWrap: false, style: t.headlineSmall!.copyWith(color: w.isi)),
+            ),
             if (keterangan != null) ...[
               const SizedBox(height: 4),
               Text(keterangan!, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),

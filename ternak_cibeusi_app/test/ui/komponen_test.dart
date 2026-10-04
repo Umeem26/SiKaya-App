@@ -1,6 +1,7 @@
 // Komponen bersama pada layar 360dp, huruf 2,0x: tanpa overflow, area sentuh
 // >= 48dp, InputRupiah menghasilkan bilangan bulat, dialog hanya true bila aksi ditekan.
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ternak_cibeusi_app/ui/komponen.dart';
 import 'package:ternak_cibeusi_app/ui/theme.dart';
@@ -88,6 +89,15 @@ void main() {
       ]),
     );
     expect(find.text('Rp1.234.567.890'), findsOneWidget);
+    // Angka satu baris (tidak patah jadi "Rp1.234.567.89" / "0") dan tetap dalam layar.
+    final p = tester.renderObject<RenderParagraph>(find.text('Rp1.234.567.890'));
+    final baris = p
+        .getBoxesForSelection(const TextSelection(baseOffset: 0, extentOffset: 15))
+        .map((b) => b.top.round())
+        .toSet();
+    expect(baris, hasLength(1));
+    final r = tester.getRect(find.text('Rp1.234.567.890'));
+    expect(r.right, lessThanOrEqualTo(360));
     expect(tester.takeException(), isNull);
   });
 }
