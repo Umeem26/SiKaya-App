@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'halaman_utama.dart';
 import 'onboarding_page.dart';
-import 'main.dart'; // Untuk akses HomePage
+import 'ui/tokens.dart';
 
 class SplashPage extends StatefulWidget {
-  const SplashPage({Key? key}) : super(key: key);
+  const SplashPage({super.key});
 
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -27,51 +28,37 @@ class _SplashPageState extends State<SplashPage> {
 
     if (!mounted) return;
 
-    // LOGIKA PENGECEKAN:
-    if (ownerName != null && ownerName.isNotEmpty) {
-      // Jika Nama SUDAH ADA -> Langsung ke Dashboard (HomePage)
-      Navigator.pushReplacement(
-        context, 
-        MaterialPageRoute(builder: (context) => const HomePage())
-      );
-    } else {
-      // Jika Nama BELUM ADA -> Ke Halaman Input Nama (Onboarding)
-      Navigator.pushReplacement(
-        context, 
-        MaterialPageRoute(builder: (context) => const OnboardingPage())
-      );
-    }
+    // Nama sudah ada -> Beranda; belum -> isi nama dulu (onboarding).
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ownerName != null && ownerName.isNotEmpty
+            ? const HalamanUtama()
+            : const OnboardingPage(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E549F), // Warna Biru Polban
+      backgroundColor: Warna.primer,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // LOGO APLIKASI (Pastikan file assets/icon_ayam.png sudah ada)
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(color: Warna.putih, shape: BoxShape.circle),
               child: Image.asset('assets/icon_ayam.png', width: 100),
             ),
             const SizedBox(height: 20),
-            const Text(
-              "SiKaya App",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
-              ),
+            Text(
+              "SiKaya",
+              style: Theme.of(context).textTheme.headlineMedium!.copyWith(color: Warna.putih),
             ),
             const SizedBox(height: 10),
-            const CircularProgressIndicator(color: Colors.white),
+            const CircularProgressIndicator(color: Warna.putih),
           ],
         ),
       ),
