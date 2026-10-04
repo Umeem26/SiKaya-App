@@ -51,7 +51,7 @@ emulator yang dipulihkan dari snapshot (GPU), bukan kode lama; sesudah cold boot
 Kesimpulan: dua data terpisah; tidak ada kolom yang menautkan `assets` ke `fixed_assets`.
 Menyatukannya butuh perubahan skema, tetapi tidak diperlukan: tab Aset dan Beranda cukup
 menampilkan data mesin. Jumlah ternak diambil dari stok ternak mesin (ekor), bukan inventaris,
-agar satu sumber kebenaran. Foto aset tetap disimpan sebagai file `foto_aset/aset_<id>.jpg` di
+agar satu sumber kebenaran. Foto aset tetap disimpan sebagai file `foto_aset/aset_<id aset>_<id catatan beli>.jpg` di
 folder dokumen aplikasi (tanpa kolom DB; sama seperti foto inventaris yang juga di luar DB dan
 tidak ikut cadangan). Inventaris lama tetap dapat dibuka dari tab Aset, berlabel
 "tidak masuk laporan".

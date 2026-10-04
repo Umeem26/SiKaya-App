@@ -7,19 +7,23 @@
 # membuat file files/foto_ok_<id> di folder aplikasi (adb shell run-as).
 #
 # Pemakaian (dari folder aplikasi Flutter, emulator sudah menyala):
-#   bash tool/tangkap_layar.sh [device-id]
-# Hasil: ../docs/screenshots/*.png dan ../docs/demo-flow.mp4
+#   bash tool/tangkap_layar.sh [device-id] [file-tes] [folder-hasil]
+# Bawaan: integration_test/satu_hari_test.dart -> ../docs/screenshots/*.png dan
+# ../docs/demo-flow.mp4. Loop kualitas UI: file-tes integration_test/pratinjau_test.dart
+# dan folder-hasil mis. ui-review/putaran-1 (relatif terhadap ../docs).
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 # Git Bash: jangan ubah /sdcard/... jadi path Windows
 
 PERANGKAT="${1:-emulator-5554}"
+TES="${2:-integration_test/satu_hari_test.dart}"
+FOLDER="${3:-screenshots}"
 ADB="${ADB:-adb}"
 if ! command -v "$ADB" >/dev/null 2>&1 && [ -n "${LOCALAPPDATA:-}" ]; then
   ADB="$LOCALAPPDATA/Android/sdk/platform-tools/adb.exe"
 fi
 PAKET="io.github.umeem26.sikaya"
 KELUAR="$(cd "$(dirname "$0")/../.." && (pwd -W 2>/dev/null || pwd))/docs"
-mkdir -p "$KELUAR/screenshots"
+mkdir -p "$KELUAR/$FOLDER"
 perangkat() { "$ADB" -s "$PERANGKAT" "$@"; }
 
 demo() { perangkat shell am broadcast -a com.android.systemui.demo -e command "$@" >/dev/null; }
@@ -45,7 +49,7 @@ tangani() {
   case "$1" in
     foto:*)
       nama="${1#foto:}"
-      perangkat exec-out screencap -p > "$KELUAR/screenshots/$nama.png"
+      perangkat exec-out screencap -p > "$KELUAR/$FOLDER/$nama.png"
       echo "foto: $nama.png"
       jawab "$nama" ;;
     huruf:*)
@@ -73,7 +77,7 @@ mulai_demo
 perangkat shell settings put system font_scale 1.0
 
 # Keluaran tes dibaca baris per baris; setiap SIKAYA_HOST:... dijalankan berurutan.
-flutter test integration_test/satu_hari_test.dart -d "$PERANGKAT" --dart-define=SIKAYA_FOTO=true 2>&1 |
+flutter test "$TES" -d "$PERANGKAT" --dart-define=SIKAYA_FOTO=true 2>&1 |
   while IFS= read -r baris; do
     baris="${baris%$'\r'}"
     echo "$baris"

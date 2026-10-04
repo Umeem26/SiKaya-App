@@ -8,6 +8,10 @@ import 'package:intl/intl.dart';
 import 'theme.dart';
 import 'tokens.dart';
 
+/// Faktor ukuran ikon: ikut setelan huruf HP (dibatasi 1,5x) agar ikon tidak
+/// tampak kecil di samping tulisan yang diperbesar.
+double skalaIkon(BuildContext context) => MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5);
+
 // --- Tombol ---
 
 enum _JenisTombol { utama, kedua, bahaya }
@@ -24,7 +28,7 @@ class _Tombol extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final teks = Text(label, textAlign: TextAlign.center);
-    final ikonW = Icon(ikon);
+    final ikonW = Icon(ikon, size: 24 * skalaIkon(context));
     Size min(double h) => lebarPenuh ? Size.fromHeight(h) : Size(tinggiSentuh, h);
     return switch (jenis) {
       _JenisTombol.utama => FilledButton.icon(
@@ -142,10 +146,11 @@ class ChipPil extends StatelessWidget {
     final gaya = gayaAngka(Theme.of(context).textTheme.labelMedium!.copyWith(color: w.isi));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Jarak.s12, vertical: Jarak.s4),
-      decoration: BoxDecoration(color: w.latar, borderRadius: BorderRadius.circular(999)),
+      // Sudut 14 (bukan pil penuh): tetap rapi bila tulisan turun dua baris.
+      decoration: BoxDecoration(color: w.latar, borderRadius: BorderRadius.circular(14)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (ikon != null) ...[
-          Icon(ikon, size: 18, color: w.isi),
+          Icon(ikon, size: 18 * skalaIkon(context), color: w.isi),
           const SizedBox(width: Jarak.s4),
         ],
         Flexible(child: Text(label, style: gaya)),
@@ -196,7 +201,7 @@ class JudulSeksi extends StatelessWidget {
             style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: Jarak.s8)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Flexible(child: Text(aksi!)),
-              Icon(ikonAksi),
+              Icon(ikonAksi, size: 24 * skalaIkon(context)),
             ]),
           ),
       ],
@@ -441,7 +446,8 @@ class BannerPeringatan extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(nada == Nada.error ? Icons.error_rounded : Icons.warning_rounded, color: w.isi, size: 28),
+            Icon(nada == Nada.error ? Icons.error_rounded : Icons.warning_rounded,
+                color: w.isi, size: 28 * skalaIkon(context)),
             const SizedBox(width: Jarak.s12),
             Expanded(child: Text(judul, style: t.titleSmall!.copyWith(color: w.isi, fontWeight: FontWeight.w700))),
           ]),
@@ -468,7 +474,7 @@ class _TombolBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Icon(ikon),
+        icon: Icon(ikon, size: 24 * skalaIkon(context)),
         label: Text(label, textAlign: TextAlign.center),
         style: OutlinedButton.styleFrom(
           minimumSize: const Size.fromHeight(tinggiSentuh),
@@ -555,8 +561,12 @@ class InputRupiah extends StatelessWidget {
         RibuanFormatter(),
       ],
       decoration: InputDecoration(
-        prefixText: 'Rp ',
-        prefixStyle: t.titleMedium,
+        // Awalan "Rp" selalu terlihat (prefixText hanya muncul saat isian difokus).
+        prefixIcon: Padding(
+          padding: const EdgeInsetsDirectional.only(start: Jarak.s16, end: Jarak.s8),
+          child: Text('Rp', style: t.titleMedium!.copyWith(color: Warna.teksSekunder)),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         errorText: errorText,
         helperText: helperText,
         helperMaxLines: 10,
@@ -712,7 +722,7 @@ class InputTanggal extends StatelessWidget {
             helperMaxLines: 10,
             errorText: errorText,
             errorMaxLines: 10,
-            prefixIcon: const Icon(Icons.event_rounded),
+            prefixIcon: Icon(Icons.event_rounded, size: 24 * skalaIkon(context)),
           ),
           child: Text(teks(), style: t.titleSmall),
         ),
@@ -852,18 +862,19 @@ class TombolPilihan extends StatelessWidget {
   Widget build(BuildContext context) {
     const ukuran = Size(tinggiSentuh, tinggiSentuh);
     final teks = Text(label, textAlign: TextAlign.center);
+    final besar = 24 * skalaIkon(context);
     return Semantics(
       selected: terpilih,
       child: terpilih
           ? FilledButton.icon(
               onPressed: onPressed,
-              icon: const Icon(Icons.check_rounded),
+              icon: Icon(Icons.check_rounded, size: besar),
               label: teks,
               style: FilledButton.styleFrom(minimumSize: ukuran),
             )
           : OutlinedButton.icon(
               onPressed: onPressed,
-              icon: Icon(ikon),
+              icon: Icon(ikon, size: besar),
               label: teks,
               style: OutlinedButton.styleFrom(minimumSize: ukuran),
             ),
