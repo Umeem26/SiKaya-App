@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'accounting/repository.dart';
+import 'aset_page.dart';
+import 'foto_aset.dart';
 import 'beranda_page.dart';
 import 'lainnya_page.dart';
 import 'list_finance_page.dart';
@@ -17,20 +19,22 @@ class TujuanNavigasi {
   final IconData ikonAktif;
 }
 
+/// Lima tujuan berlabel pendek (muat 5 kolom di 360dp, huruf 2,0x).
 const tujuanNavigasi = [
   TujuanNavigasi('Beranda', Icons.home_rounded, Icons.home_rounded),
-  TujuanNavigasi('Catatan', Icons.receipt_long_rounded, Icons.receipt_long_rounded),
+  TujuanNavigasi('Catat', Icons.edit_note_rounded, Icons.edit_note_rounded),
+  TujuanNavigasi('Aset', Icons.warehouse_rounded, Icons.warehouse_rounded),
   TujuanNavigasi('Laporan', Icons.bar_chart_rounded, Icons.bar_chart_rounded),
   TujuanNavigasi('Lainnya', Icons.more_horiz_rounded, Icons.more_horiz_rounded),
 ];
 
 /// Indeks tab (urutan [tujuanNavigasi]).
 abstract final class TabUtama {
-  static const beranda = 0, catat = 1, laporan = 2, lainnya = 3;
+  static const beranda = 0, catat = 1, aset = 2, laporan = 3, lainnya = 4;
 }
 
 class HalamanUtama extends StatefulWidget {
-  const HalamanUtama({super.key, this.muatBeranda, this.repo, this.hariIni, this.bagikanPdf});
+  const HalamanUtama({super.key, this.muatBeranda, this.repo, this.hariIni, this.bagikanPdf, this.fotoAset});
 
   /// Pengganti pemuat data Beranda (tes); null = data aplikasi.
   final Future<RingkasanBeranda> Function()? muatBeranda;
@@ -43,6 +47,9 @@ class HalamanUtama extends StatefulWidget {
 
   /// Pengganti lembar bagikan PDF laporan (tes); null = lembar bagikan Android.
   final Future<void> Function(Uint8List pdf, String namaFile)? bagikanPdf;
+
+  /// Pengganti sumber foto aset (tes); null = folder dokumen aplikasi.
+  final SumberFotoAset? fotoAset;
 
   @override
   State<HalamanUtama> createState() => _HalamanUtamaState();
@@ -62,8 +69,10 @@ class _HalamanUtamaState extends State<HalamanUtama> {
           repo: widget.repo,
           hariIni: widget.hariIni,
           onLihatCatatan: () => _pindah(TabUtama.catat),
+          onLihatAset: () => _pindah(TabUtama.aset),
         ),
       TabUtama.catat => ListFinancePage(repo: widget.repo, hariIni: widget.hariIni),
+      TabUtama.aset => AsetPage(repo: widget.repo, hariIni: widget.hariIni, foto: widget.fotoAset),
       TabUtama.laporan => ReportPage(repo: widget.repo, hariIni: widget.hariIni, bagikan: widget.bagikanPdf),
       _ => LainnyaPage(repo: widget.repo, hariIni: widget.hariIni),
     };

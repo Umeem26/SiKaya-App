@@ -47,7 +47,11 @@ class FormFinancePage extends StatefulWidget {
 
   /// Pengganti "sekarang" (tes); null = DateTime.now().
   final DateTime? hariIni;
-  const FormFinancePage({super.key, this.transaction, this.repo, this.hariIni});
+
+  /// Catat baru langsung ke jenis ini (mis. "Tambah aset" = beli aset tetap),
+  /// tanpa layar "Apa yang terjadi?"; kembali = menutup halaman.
+  final TxType? jenisAwal;
+  const FormFinancePage({super.key, this.transaction, this.repo, this.hariIni, this.jenisAwal});
 
   @override
   State<FormFinancePage> createState() => _FormFinancePageState();
@@ -90,7 +94,11 @@ class _FormFinancePageState extends State<FormFinancePage> {
     setState(() {
       _piutang = ref.piutang;
       _retur = ref.retur;
-      if (t != null) _pilih(specFor(t), valuesFrom(t, asset: asset));
+      if (t != null) {
+        _pilih(specFor(t), valuesFrom(t, asset: asset));
+      } else if (widget.jenisAwal case final j?) {
+        _pilih(txFormSpecs[j]!);
+      }
       _loading = false;
     });
   }
@@ -185,7 +193,7 @@ class _FormFinancePageState extends State<FormFinancePage> {
     final spec = _spec;
     return PopScope(
       // Catat baru: tombol kembali dari form = kembali ke pilihan.
-      canPop: spec == null || _isEdit,
+      canPop: spec == null || _isEdit || widget.jenisAwal != null,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) setState(() => _spec = null);
       },
@@ -274,7 +282,7 @@ class _FormFinancePageState extends State<FormFinancePage> {
           const SizedBox(height: Jarak.s8),
           Text(spec.penjelasan!, style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
         ],
-        if (!_isEdit) ...[
+        if (!_isEdit && widget.jenisAwal == null) ...[
           const SizedBox(height: 12),
           TombolKedua(
             label: 'Ganti pilihan',

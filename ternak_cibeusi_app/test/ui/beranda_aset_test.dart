@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ternak_cibeusi_app/aset_data.dart';
+import 'package:ternak_cibeusi_app/aset_page.dart';
+import 'package:ternak_cibeusi_app/foto_aset.dart';
 import 'package:ternak_cibeusi_app/halaman_utama.dart';
 import 'package:ternak_cibeusi_app/ui/komponen.dart';
 import 'package:ternak_cibeusi_app/ui/theme.dart';
@@ -19,7 +21,7 @@ void main() {
     aturLayar(tester, skala);
     await tester.pumpWidget(MaterialApp(
       theme: temaSikaya(),
-      home: HalamanUtama(repo: repo, hariIni: hariAset),
+      home: HalamanUtama(repo: repo, hariIni: hariAset, fotoAset: SumberFotoAset.kosong),
     ));
     await tester.pumpAndSettle();
   }
@@ -43,13 +45,30 @@ void main() {
       cekTinggiKontrol(tester);
       await cekAreaSentuh(tester);
       expect(tester.takeException(), isNull);
+
+      await ketuk(tester, find.text('Lihat aset'));
+      expect(tester.widget<NavigasiBawah>(find.byType(NavigasiBawah)).terpilih, TabUtama.aset);
+      expect(find.byType(AsetPage), findsOneWidget);
     });
   }
 
   testWidgets('Beranda tanpa aset/stok: keadaan kosong yang ramah, huruf 2,0x', (tester) async {
     await pasang(tester, 2.0, isi: false);
-    await semuaTerlihat(tester, ['Belum ada aset atau stok']);
+    await semuaTerlihat(tester, ['Belum ada aset atau stok', 'Buka Aset']);
     expect(find.text('Jumlah ternak'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('navigasi 5 tab berlabel pendek, 360dp huruf 2,0x: ukuran tulisan seragam', (tester) async {
+    await pasang(tester, 2.0);
+    final tinggi = <double>{};
+    for (final t in tujuanNavigasi) {
+      final f = find.descendant(of: find.byType(NavigasiBawah), matching: find.text(t.label));
+      dalamLebar(tester, f);
+      tinggi.add(tester.getSize(f).height.roundToDouble());
+      expect(tester.getSize(f).height, greaterThanOrEqualTo(14), reason: t.label);
+    }
+    expect(tujuanNavigasi.map((t) => t.label), ['Beranda', 'Catat', 'Aset', 'Laporan', 'Lainnya']);
+    expect(tinggi, hasLength(1), reason: 'semua label satu ukuran');
   });
 }

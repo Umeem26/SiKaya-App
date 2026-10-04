@@ -103,8 +103,8 @@ void main() {
     await catat(tester, 'Jual, dibayar tunai', nominal: 500000);
     await catat(tester, 'Bayar biaya operasional', pilihan: 'Upah tenaga kerja', nominal: 200000);
 
-    // Tab Catatan -> ketuk penjualan -> Ubah nominal.
-    await tester.tap(find.text('Catatan').last);
+    // Tab Catat (daftar catatan) -> ketuk penjualan -> Ubah nominal.
+    await tester.tap(find.descendant(of: find.byType(NavigasiBawah), matching: find.text('Catat')));
     await tester.pumpAndSettle();
     await ketuk(tester, find.text('Jual, dibayar tunai'));
     expect(find.byType(DetailCatatanPage), findsOneWidget);

@@ -16,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'accounting/repository.dart';
 import 'database/backup.dart';
 import 'database/database_helper.dart';
+import 'foto_aset.dart';
 import 'inventaris_data.dart';
 import 'list_asset_page.dart';
 import 'splash_page.dart';
@@ -97,7 +98,13 @@ class LayananLainnya {
   Future<BackupSummary> periksa(String p) => (periksaCadangan ?? BackupService.instance.inspect)(p);
   Future<BackupSummary> sekarang() => (ringkasanSekarang ?? BackupService.instance.currentSummary)();
   Future<RestoreResult> pulihkanDari(String p) => (pulihkan ?? BackupService.instance.restoreFrom)(p);
-  Future<String> hapus() => (hapusSemua ?? DatabaseHelper.instance.resetDatabase)();
+  Future<String> hapus() async {
+    final f = hapusSemua;
+    if (f != null) return f();
+    final cadangan = await DatabaseHelper.instance.resetDatabase();
+    await SumberFotoAset.instance.hapusSemua(); // foto aset tetap menempel ke id yang akan dipakai ulang
+    return cadangan;
+  }
 }
 
 /// CSV daftar catatan (dibuka di Excel). Kolom sama dengan versi sebelumnya.

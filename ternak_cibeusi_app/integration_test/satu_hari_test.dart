@@ -149,7 +149,7 @@ void main() {
     await foto(tester, 'beranda-huruf-besar');
     await hurufSistem(tester, '1.0');
 
-    await keTab(tester, 'Catatan');
+    await keTab(tester, 'Catat');
     await gulirKe(tester, find.text('Jual, dibayar tunai'));
     await keAtas(tester);
     await foto(tester, 'catatan');
@@ -212,7 +212,7 @@ void main() {
     expect(await repo.transactions(), hasLength(20)); // + entri tutup buku, tidak ada yang hilang
 
     // --- 7. Catatan lama terkunci: ubah dan hapus ditolak ---
-    await keTab(tester, 'Catatan');
+    await keTab(tester, 'Catat');
     await ketuk(tester, find.text('Masukkan uang pribadi ke usaha (modal)'));
     expect(find.byType(DetailCatatanPage), findsOneWidget);
     await ketuk(tester, find.text('Ubah'));
