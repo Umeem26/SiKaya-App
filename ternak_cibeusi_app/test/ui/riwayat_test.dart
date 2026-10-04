@@ -1,6 +1,7 @@
 // S2: Riwayat catatan dan detail pada 360dp, huruf 1,0x dan 2,0x: arah uang
 // ditulis dengan kata, perlu dicek terlihat, tombol Ubah/Hapus berlabel >= 48dp.
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ternak_cibeusi_app/accounting/models.dart';
 import 'package:ternak_cibeusi_app/accounting/repository.dart';
@@ -9,6 +10,7 @@ import 'package:ternak_cibeusi_app/detail_catatan_page.dart';
 import 'package:ternak_cibeusi_app/list_finance_page.dart';
 import 'package:ternak_cibeusi_app/transaction_model.dart';
 import 'package:ternak_cibeusi_app/ui/item_catatan.dart';
+import 'package:ternak_cibeusi_app/ui/theme.dart';
 
 import 'ui_helpers.dart';
 
@@ -34,7 +36,7 @@ Future<AccountingRepository> repoRiwayat() async {
   return repo;
 }
 
-extension on TransactionModel {
+extension LabelUji on TransactionModel {
   /// Kategori = label spec, seperti hasil form.
   TransactionModel copyLabel() => TransactionModel(
         txType: txType,
@@ -60,20 +62,31 @@ void main() {
         'Perlu dicek: Jumlah yang dipakai melebihi stok yang tercatat',
         'Nilai dihitung otomatis',
         '4 Okt 2026 · 999 dosis',
-        'Beli kandang/peralatan/kendaraan/tanah',
         '−Rp1.200.000',
-        'Jual, belum dibayar (piutang)',
         'Rp300.000',
         'Tidak lewat kas',
-        'Bayar biaya operasional',
         '−Rp200.000',
         'Keluar',
-        'Jual, dibayar tunai',
         '+Rp500.000',
         'Masuk',
         'September 2026',
         '+Rp5.000.000',
       ]);
+      // Judul catatan: utuh pada huruf normal; pada huruf besar maks. 2 baris ("...").
+      for (final judul in [
+        'Beli kandang/peralatan/kendaraan/tanah',
+        'Jual, belum dibayar (piutang)',
+        'Bayar biaya operasional',
+        'Jual, dibayar tunai',
+      ]) {
+        final f = find.text(judul);
+        await gulirKe(tester, f);
+        if (skala < skalaCatatanBertumpuk) {
+          dalamLebar(tester, f);
+        } else {
+          expect(barisTeks(tester, f), lessThanOrEqualTo(2), reason: judul);
+        }
+      }
       cekTinggiKontrol(tester);
       await cekAreaSentuh(tester);
 
@@ -114,6 +127,60 @@ void main() {
       await tester.tap(find.text('Batal'));
       await tester.pumpAndSettle();
       expect((await repo.transactions()).length, 6);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final skala in [1.0, 1.3, 2.0]) {
+    testWidgets('Baris catatan huruf ${skala}x: nominal ${skala < skalaCatatanBertumpuk ? 'di samping' : 'di bawah'} judul',
+        (tester) async {
+      const panjang = TransactionModel(
+          txType: TxType.beliAsetTetap, amount: 125000000, date: '2026-10-04', category: 'Beli kandang/peralatan/kendaraan/tanah');
+      const pendek = TransactionModel(txType: TxType.penjualanTunai, amount: 500000, date: '2026-10-01');
+      aturLayar(tester, skala);
+      // Huruf uji (Ahem) jauh lebih lebar dari Roboto: huruf normal diuji di layar lebar
+      // agar judul pendek muat berdampingan dengan nominal, seperti di HP.
+      if (skala < skalaCatatanBertumpuk) tester.view.physicalSize = const Size(900, tinggiLayar);
+      await tester.pumpWidget(MaterialApp(
+        theme: temaSikaya(),
+        home: Scaffold(
+          body: ListView(padding: const EdgeInsets.all(16), children: [
+            ItemCatatan(catatan: panjang.copyLabel(), onTap: () {}),
+            ItemCatatan(catatan: pendek.copyLabel(), onTap: () {}),
+          ]),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      for (final (judul, nilai) in [
+        ('Beli kandang/peralatan/kendaraan/tanah', '−Rp125.000.000'),
+        ('Jual, dibayar tunai', '+Rp500.000'),
+      ]) {
+        final rJudul = tester.getRect(find.text(judul));
+        final rNilai = tester.getRect(find.text(nilai));
+        final kartu = tester.getRect(find.ancestor(of: find.text(judul), matching: find.byType(ItemCatatan)));
+        if (skala < skalaCatatanBertumpuk) {
+          // Nominal sangat lebar (> separuh baris) tetap boleh turun agar judul tidak terjepit.
+          if (nilai == '−Rp125.000.000') continue;
+          expect(rNilai.left, greaterThan(rJudul.right), reason: '$nilai di samping judul');
+          expect(rNilai.top, lessThan(rJudul.bottom), reason: '$nilai sebaris dengan judul');
+        } else {
+          expect(rNilai.top, greaterThanOrEqualTo(rJudul.bottom), reason: '$nilai di bawah judul');
+          expect(barisTeks(tester, find.text(judul)), lessThanOrEqualTo(2));
+          // Rata kanan: ujung kanan nominal dekat ujung kanan kartu (sebelum panah).
+          expect(kartu.right - rNilai.right, lessThan(48), reason: '$nilai rata kanan');
+        }
+      }
+      // Judul panjang yang dipotong tetap terbaca utuh oleh pembaca layar.
+      if (skala >= skalaCatatanBertumpuk) {
+        final paragraf = tester.renderObject<RenderParagraph>(find.text('Beli kandang/peralatan/kendaraan/tanah'));
+        expect(paragraf.didExceedMaxLines, isTrue);
+        expect(paragraf.text.toPlainText(), 'Beli kandang/peralatan/kendaraan/tanah');
+      }
+      // Nominal: figur tabular.
+      final nilaiTeks = tester.widget<Text>(find.text('+Rp500.000'));
+      expect(nilaiTeks.style?.fontFeatures, contains(const FontFeature.tabularFigures()));
+      cekTinggiKontrol(tester);
+      await cekAreaSentuh(tester);
       expect(tester.takeException(), isNull);
     });
   }

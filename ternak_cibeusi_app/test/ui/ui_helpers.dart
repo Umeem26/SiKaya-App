@@ -119,6 +119,13 @@ void dalamLebar(WidgetTester tester, Finder f) {
   }
 }
 
+/// Jumlah baris yang tampil dari teks [f] (yang pertama).
+int barisTeks(WidgetTester tester, Finder f) {
+  final p = tester.renderObject<RenderParagraph>(f.first);
+  final kotak = p.getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: p.text.toPlainText().length));
+  return kotak.map((b) => b.top.round()).toSet().length;
+}
+
 /// Gulir ke setiap teks, pastikan tampil dalam lebar layar.
 Future<void> semuaTerlihat(WidgetTester tester, Iterable<String> teks) async {
   for (final s in teks) {

@@ -79,6 +79,9 @@ IconData ikonJenis(TxType? t) => switch (t) {
 /// Warna ubin per arah kas: masuk hijau, keluar oranye tua, tidak lewat kas biru.
 Nada nadaArah(int arahKas) => arahKas > 0 ? Nada.sukses : (arahKas < 0 ? Nada.peringatan : Nada.netral);
 
+/// Mulai skala huruf ini baris catatan bertumpuk: judul maks. 2 baris, nominal di baris sendiri.
+const skalaCatatanBertumpuk = 1.3;
+
 class ItemCatatan extends StatelessWidget {
   const ItemCatatan({super.key, required this.catatan, this.onTap});
   final TransactionModel catatan;
@@ -90,22 +93,74 @@ class ItemCatatan extends StatelessWidget {
     final c = catatan;
     final arah = c.arahKas;
     final warna = arah > 0 ? Warna.sukses : (arah < 0 ? Warna.teks : Warna.teksSekunder);
-    final nilai = nilaiCatatan(c);
+    final nilai = nilaiCatatan(c) ?? 'Nilai dihitung otomatis';
     final rincian = [
       tanggalPendek(c.date),
       if (c.qty != null && c.qty! > 0) '${c.qty} ${satuanBarang(c.item)}'.trim(),
     ].join(' · ');
-    final gayaNilai = gayaAngka((nilai == null ? t.bodySmall : t.titleSmall)!
+    final gayaNilai = gayaAngka((nilaiCatatan(c) == null ? t.bodySmall : t.titleSmall)!
         .copyWith(color: warna, fontWeight: FontWeight.w700));
-    final kolomNilai = Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      Text(nilai ?? 'Nilai dihitung otomatis', textAlign: TextAlign.right, style: gayaNilai),
-      Text(kataArah(c), style: t.bodySmall!.copyWith(color: warna, fontWeight: FontWeight.w600)),
-    ]);
+    final gayaArah = t.bodySmall!.copyWith(color: warna, fontWeight: FontWeight.w600);
+    final bertumpuk = MediaQuery.textScalerOf(context).scale(10) >= 10 * skalaCatatanBertumpuk;
+
+    // Huruf besar: judul maks. 2 baris (sisanya "..."; pembaca layar tetap membaca utuh).
     final judul = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(labelTransaksi(c), style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+      Text(labelTransaksi(c),
+          maxLines: bertumpuk ? 2 : null,
+          overflow: bertumpuk ? TextOverflow.ellipsis : null,
+          style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
       const SizedBox(height: 2),
       Text(rincian, style: gayaAngka(t.bodySmall!.copyWith(color: Warna.teksSekunder))),
     ]);
+    final perluDicek = c.perluDitinjau
+        ? [
+            const SizedBox(height: Jarak.s8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: Jarak.s8, vertical: Jarak.s4),
+              decoration: BoxDecoration(
+                color: Warna.peringatanMuda,
+                borderRadius: BorderRadius.circular(Sudut.kecil),
+              ),
+              child: Text('Perlu dicek: ${alasanPerluDicek(c.reviewNote)}',
+                  style: t.bodySmall!.copyWith(color: Warna.peringatan, fontWeight: FontWeight.w600)),
+            ),
+          ]
+        : const <Widget>[];
+
+    Widget isi(BoxConstraints k) {
+      // Huruf normal: nominal di samping judul. Bila nominal terlalu lebar (atau huruf
+      // besar), nominal turun ke baris sendiri di bawah judul, rata kanan, satu baris.
+      var samping = !bertumpuk;
+      if (samping) {
+        final ukur = TextPainter(
+          text: TextSpan(text: nilai, style: gayaNilai),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 1,
+        )..layout();
+        samping = ukur.width + Jarak.s12 <= k.maxWidth * 0.5;
+        ukur.dispose();
+      }
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (samping)
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: judul),
+            const SizedBox(width: Jarak.s12),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(nilai, textAlign: TextAlign.right, style: gayaNilai),
+              Text(kataArah(c), style: gayaArah),
+            ]),
+          ])
+        else ...[
+          judul,
+          const SizedBox(height: Jarak.s8),
+          TeksUang(nilai, gaya: gayaNilai, kanan: true),
+          Text(kataArah(c), textAlign: TextAlign.right, style: gayaArah),
+        ],
+        ...perluDicek,
+      ]);
+    }
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -117,53 +172,7 @@ class ItemCatatan extends StatelessWidget {
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               UbinIkon(ikonJenis(c.reversalOf != null ? null : c.txType), nada: nadaArah(arah)),
               const SizedBox(width: Jarak.s12),
-              Expanded(
-                // Nominal rata kanan di samping judul bila muat; bila huruf besar,
-                // turun ke bawah judul (tetap rata kanan, satu baris).
-                child: LayoutBuilder(builder: (context, k) {
-                  final ukur = TextPainter(
-                    text: TextSpan(text: nilai ?? 'Nilai dihitung otomatis', style: gayaNilai),
-                    textDirection: Directionality.of(context),
-                    textScaler: MediaQuery.textScalerOf(context),
-                    maxLines: 1,
-                  )..layout();
-                  final lebarNilai = ukur.width;
-                  ukur.dispose();
-                  final samping = lebarNilai + Jarak.s12 <= k.maxWidth * 0.5;
-                  return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    if (samping)
-                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Expanded(child: judul),
-                        const SizedBox(width: Jarak.s12),
-                        kolomNilai,
-                      ])
-                    else ...[
-                      judul,
-                      const SizedBox(height: Jarak.s4),
-                      Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                          TeksUang(nilai ?? 'Nilai dihitung otomatis', gaya: gayaNilai, kanan: true),
-                          Text(kataArah(c),
-                              style: t.bodySmall!.copyWith(color: warna, fontWeight: FontWeight.w600)),
-                        ]),
-                      ),
-                    ],
-                    if (c.perluDitinjau) ...[
-                      const SizedBox(height: Jarak.s8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: Jarak.s8, vertical: Jarak.s4),
-                        decoration: BoxDecoration(
-                          color: Warna.peringatanMuda,
-                          borderRadius: BorderRadius.circular(Sudut.kecil),
-                        ),
-                        child: Text('Perlu dicek: ${alasanPerluDicek(c.reviewNote)}',
-                            style: t.bodySmall!.copyWith(color: Warna.peringatan, fontWeight: FontWeight.w600)),
-                      ),
-                    ],
-                  ]);
-                }),
-              ),
+              Expanded(child: LayoutBuilder(builder: (context, k) => isi(k))),
               if (onTap != null) ...[
                 const SizedBox(width: Jarak.s4),
                 const Padding(
