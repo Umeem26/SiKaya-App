@@ -63,6 +63,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -76,6 +77,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon_ayam.png
+    - assets/splash/splash_logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -119,3 +121,16 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/icon.png"
     icon_size: 48
+# Splash native (buat ulang: python tool/buat_splash.py && dart run flutter_native_splash:create).
+# Latar = Warna.primer (biru logo). Android 12+: ikon 240dp dipotong lingkaran 160dp
+# (2/3 diameter, dokumentasi Android "Splash screens"); isi logo di gambar 960px
+# berdiagonal <= 600px sehingga muat utuh di lingkaran 640px.
+flutter_native_splash:
+  color: "#1E4FA3"
+  image: assets/splash/splash_logo.png
+  android_12:
+    color: "#1E4FA3"
+    image: assets/splash/splash_android12.png
+    icon_background_color: "#FFFFFF"
+  ios: false
+  web: false

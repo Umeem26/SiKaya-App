@@ -13,6 +13,7 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
   SystemChrome.setSystemUIOverlayStyle(gayaSistem);
+  await siapkanLogoSplash();
   runApp(const MyApp());
 }
 
