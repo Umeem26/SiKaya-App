@@ -1,6 +1,7 @@
 // Beranda (UI-PLAN.md bagian 3.1): keadaan usaha bulan ini dalam 5 detik.
 // Semua angka dari AccountingRepository.loadReport (satu sumber kebenaran);
-// layar ini tidak menghitung akuntansi sendiri.
+// layar ini tidak menghitung akuntansi sendiri. Ringkasan aset dari DataAset
+// (aset_data.dart), sumber yang sama dengan tab Aset dan Laporan.
 // Tampilan mengikuti UI lama (docs/ref-lama): header biru melengkung dengan
 // sapaan dan nama usaha, kartu utama bergradien yang menumpuk ke header.
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'accounting/models.dart';
 import 'accounting/repository.dart';
+import 'aset_data.dart';
 import 'detail_catatan_page.dart';
 import 'form_finance_page.dart';
 import 'transaction_model.dart';
@@ -29,6 +31,7 @@ class RingkasanBeranda {
     this.perluDitinjau,
     this.seimbang = true,
     this.terakhir = const [],
+    this.aset,
   });
   final String namaUsaha;
   final DateTime dari;
@@ -48,6 +51,9 @@ class RingkasanBeranda {
 
   /// 5 catatan terbaru (urut tanggal lalu id, turun), termasuk yang perlu dicek.
   final List<TransactionModel> terakhir;
+
+  /// Ringkasan aset & stok per [sampai] (sumber sama dengan tab Aset); null = tidak dimuat.
+  final DataAset? aset;
 }
 
 /// Ringkasan bulan berjalan s.d. [hariIni]. Kas periode = buku kas per hariIni
@@ -73,6 +79,7 @@ Future<RingkasanBeranda> muatRingkasanBeranda(
     perluDitinjau: p.report.peringatanTinjau,
     seimbang: p.report.balanced,
     terakhir: (await repo.transactions()).take(5).toList(),
+    aset: await muatDataAset(repo, hariIni: sampai),
   );
 }
 
@@ -97,7 +104,7 @@ String sapaan(DateTime t) => switch (t.hour) {
     };
 
 class BerandaPage extends StatefulWidget {
-  const BerandaPage({super.key, this.muat, this.repo, this.hariIni, this.onLihatCatatan});
+  const BerandaPage({super.key, this.muat, this.repo, this.hariIni, this.onLihatCatatan, this.onLihatAset});
 
   /// Pemuat data (tes); null = [muatBerandaAplikasi] dari [repo].
   final Future<RingkasanBeranda> Function()? muat;
@@ -108,6 +115,9 @@ class BerandaPage extends StatefulWidget {
 
   /// Pindah ke daftar catatan (tab Catat) untuk memeriksa yang perlu dicek.
   final VoidCallback? onLihatCatatan;
+
+  /// Pindah ke tab Aset.
+  final VoidCallback? onLihatAset;
 
   @override
   State<BerandaPage> createState() => _BerandaPageState();
@@ -235,6 +245,7 @@ class _BerandaPageState extends State<BerandaPage> {
     final untung = r.labaBersih >= 0;
     const jarak = SizedBox(height: Jarak.s16);
     const tumpuk = 48.0; // kartu utama naik ke header sebanyak ini
+    final aset = r.aset;
     return ListView(
       padding: EdgeInsets.zero,
       children: [
@@ -298,6 +309,13 @@ class _BerandaPageState extends State<BerandaPage> {
                 ikon: Icons.account_balance_wallet_rounded,
                 keterangan: 'Sisa uang tunai menurut catatan.',
               ),
+              if (aset != null) ...[
+                const SizedBox(height: Jarak.s24),
+                JudulSeksi('Aset & stok',
+                    aksi: widget.onLihatAset == null ? null : 'Lihat aset', onAksi: widget.onLihatAset),
+                const SizedBox(height: Jarak.s8),
+                ..._aset(aset),
+              ],
               const SizedBox(height: Jarak.s24),
               const JudulSeksi('Catatan terakhir'),
               const SizedBox(height: Jarak.s8),
@@ -323,5 +341,63 @@ class _BerandaPageState extends State<BerandaPage> {
         ),
       ],
     );
+  }
+
+  /// Ringkasan aset: nilai buku aset tetap, nilai stok, jumlah ternak, stok menipis.
+  List<Widget> _aset(DataAset a) {
+    if (!a.adaData) {
+      return [
+        Card(
+          child: KosongRamah(
+            ikon: Icons.warehouse_rounded,
+            judul: 'Belum ada aset atau stok',
+            isi: 'Catat pembelian kandang, alat, pakan, atau bibit. Nilainya muncul di sini.',
+            aksi: widget.onLihatAset == null ? null : 'Buka Aset',
+            ikonAksi: Icons.arrow_forward_rounded,
+            onAksi: widget.onLihatAset,
+          ),
+        ),
+      ];
+    }
+    final ternak = a.stokDari(StockItem.ternak);
+    final menipis = a.menipis;
+    return [
+      KisiKartu(children: [
+        KartuAngka(
+          judul: 'Kandang & peralatan',
+          nilai: rupiah(a.nilaiBukuAsetTetap),
+          ikon: Icons.warehouse_rounded,
+          keterangan: '${a.asetTetap.length} aset, nilai sesudah penyusutan.',
+        ),
+        KartuAngka(
+          judul: 'Nilai stok',
+          nilai: rupiah(a.nilaiPersediaan),
+          ikon: Icons.inventory_2_rounded,
+          keterangan: 'Pakan, obat, dan ternak menurut harga beli.',
+        ),
+        if (ternak.pernahDibeli)
+          KartuAngka(
+            judul: 'Jumlah ternak',
+            nilai: '${ribuan(ternak.jumlah)} ekor',
+            ikon: Icons.pets_rounded,
+            keterangan: 'Dari catatan beli bibit, jual, dan mati.',
+          ),
+      ]),
+      if (menipis.isNotEmpty) ...[
+        const SizedBox(height: Jarak.s16),
+        BannerPeringatan(
+          judul: 'Stok menipis',
+          isi: [
+            for (final s in menipis)
+              s.jumlah == 0
+                  ? '${namaBarang(s.item)}: habis'
+                  : '${namaBarang(s.item)}: sisa ${ribuan(s.jumlah)} ${satuanBarang(s.item)}, cukup ±${s.cukupHari} hari',
+          ].join('\n'),
+          aksi: widget.onLihatAset == null ? null : 'Lihat stok',
+          ikonAksi: Icons.inventory_2_rounded,
+          onAksi: widget.onLihatAset,
+        ),
+      ],
+    ];
   }
 }
