@@ -62,4 +62,19 @@ void main() {
       expect(rasioKontras(teks, latar), greaterThanOrEqualTo(4.5));
     }
   });
+
+  test('S3: pasangan yang dipakai Laporan terdaftar dan >= 4,5:1', () {
+    final dipakai = [
+      (Warna.peringatan, Warna.permukaan), // kartu Utang
+      (Warna.primer, Warna.latar), // rentang tanggal laporan
+      (Warna.putih, Warna.primer), // pilihan terpilih
+      (Warna.primer, Warna.permukaan), // pilihan tidak terpilih
+      (Warna.teks, Warna.permukaan), // baris laporan resmi
+      (Warna.teksSekunder, Warna.permukaan), // keterangan CaLK
+    ];
+    for (final (teks, latar) in dipakai) {
+      expect(pasanganKontras.any((p) => p.$2 == teks && p.$3 == latar), isTrue, reason: '$teks/$latar belum terdaftar');
+      expect(rasioKontras(teks, latar), greaterThanOrEqualTo(4.5));
+    }
+  });
 }

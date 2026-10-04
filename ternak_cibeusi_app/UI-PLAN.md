@@ -97,5 +97,5 @@ Dicek ulang sesudah S2 (2026-10-04): 29 isu, semuanya di form_asset_page (20), d
 ## 9. Kemajuan (centang = terkomit, `flutter test` hijau, `flutter build apk --debug` sukses)
 - [x] S1 — tema, komponen dasar, navigasi bawah, Beranda, splash/onboarding
 - [x] S2 — "Apa yang terjadi?" berkelompok (`kelompokCatat`), form dengan `InputRupiah`/`InputTanggal`/`PilihanTunggal`, Riwayat per bulan (`list_finance_page.dart`), detail Ubah/Hapus (`detail_catatan_page.dart`), 5 catatan terakhir di Beranda (`ItemCatatan` yang sama). Tes: `test/ui/catat_test.dart`, `riwayat_test.dart`, `alur_catat_test.dart`
-- [ ] S3 — laporan dua lapis + PDF
+- [x] S3 — Ringkasan bahasa petani (`report_page.dart`: pilihan waktu, 8 angka berpenjelasan) → Laporan resmi (`laporan_resmi_page.dart`: Posisi Keuangan, Laba Rugi, CaLK, Perubahan Ekuitas sebagai tombol pilihan yang semuanya terlihat, bukan tab geser) → satu PDF dibagikan (`laporan_pdf.dart`). Ketiganya membaca satu `DataLaporan` (`laporan_data.dart`). Toggle "Laporan Asset Tetap" lama (isinya inventaris) dihapus; inventaris ada di Lainnya. Tes: `laporan_data_test.dart` (ringkasan = resmi = CaLK = PDF), `laporan_test.dart`
 - [ ] S4 — Lainnya (cadangan, pulihkan, tutup buku, CSV), onboarding cadangan berkala, Inventaris

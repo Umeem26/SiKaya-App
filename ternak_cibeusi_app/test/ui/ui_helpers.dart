@@ -51,10 +51,14 @@ Future<AccountingRepository> repoUji() async {
   return AccountingRepository(() async => db);
 }
 
+/// Daftar gulir vertikal halaman teratas (bukan TabBar/PageView yang horizontal).
+Finder daftarUtama() =>
+    find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down);
+
 /// Gulir daftar utama halaman teratas sampai [f] (boleh lebih dari satu) terlihat.
 Future<void> gulirKe(WidgetTester tester, Finder f, {double langkah = 150}) async {
   if (f.evaluate().isEmpty) {
-    final pos = tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+    final pos = tester.state<ScrollableState>(daftarUtama().first).position;
     pos.jumpTo(0);
     await tester.pump();
     while (f.evaluate().isEmpty && pos.pixels < pos.maxScrollExtent) {
@@ -70,7 +74,7 @@ Future<void> gulirKe(WidgetTester tester, Finder f, {double langkah = 150}) asyn
 /// Semua teks di dalam [dalam] yang pernah tampil saat daftar utama digulir dari
 /// atas sampai bawah (daftar dibangun malas, jadi tidak bisa dihitung sekaligus).
 Future<Set<String>> kumpulkanTeks(WidgetTester tester, Finder dalam, {double langkah = 100}) async {
-  final pos = tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+  final pos = tester.state<ScrollableState>(daftarUtama().first).position;
   final hasil = <String>{};
   void ambil() {
     for (final e in find.descendant(of: dalam, matching: find.byType(Text)).evaluate()) {

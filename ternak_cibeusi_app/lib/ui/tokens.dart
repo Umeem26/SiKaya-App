@@ -48,6 +48,7 @@ const pasanganKontras = <(String, Color, Color)>[
   ('putih di atas sukses', Warna.putih, Warna.sukses),
   ('peringatan di atas peringatanMuda', Warna.peringatan, Warna.peringatanMuda),
   ('peringatan di atas latar', Warna.peringatan, Warna.latar),
+  ('peringatan di atas permukaan (kartu utang)', Warna.peringatan, Warna.permukaan),
   ('teks di atas peringatanMuda', Warna.teks, Warna.peringatanMuda),
   ('error di atas latar', Warna.error, Warna.latar),
   ('error di atas permukaan', Warna.error, Warna.permukaan),
