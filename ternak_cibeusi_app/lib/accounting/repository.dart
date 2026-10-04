@@ -6,6 +6,7 @@ import '../database/database_helper.dart';
 import '../transaction_model.dart';
 import 'engine.dart';
 import 'models.dart';
+import 'tx_form_spec.dart';
 
 /// Hasil satu periode laporan.
 class PeriodReport {
@@ -15,7 +16,10 @@ class PeriodReport {
 
   /// Buku kas (dihitung terpisah dari `report`, invarian D3).
   final CashSummary kas;
-  const PeriodReport(this.from, this.asOf, this.report, this.kas);
+
+  /// Posisi per sehari sebelum `from`; null bila `from` null.
+  final Report? opening;
+  const PeriodReport(this.from, this.asOf, this.report, this.kas, {this.opening});
 }
 
 class AccountingRepository {
@@ -43,24 +47,105 @@ class AccountingRepository {
     return db.insert('fixed_assets', asset.toMap()..remove('id'));
   }
 
+  Future<TransactionModel?> transactionById(int id) async {
+    final db = await _open();
+    final rows = await db.query('transactions', where: 'id = ?', whereArgs: [id]);
+    return rows.isEmpty ? null : TransactionModel.fromMap(rows.single);
+  }
+
+  Future<FixedAssetModel?> fixedAssetById(int id) async {
+    final db = await _open();
+    final rows = await db.query('fixed_assets', where: 'id = ?', whereArgs: [id]);
+    return rows.isEmpty ? null : FixedAssetModel.fromMap(rows.single);
+  }
+
+  /// Tanggal terakhir yang sudah ditutup buku (null = belum pernah).
+  Future<DateTime?> lockedUntil() async {
+    final db = await _open();
+    final v = (await db.rawQuery('SELECT MAX(closed_until) AS t FROM period_closings'))
+        .first['t'] as String?;
+    return v == null ? null : DateTime.parse(v);
+  }
+
   /// Simpan transaksi (termasuk yang nantinya ditandai perlu_ditinjau), lalu
   /// perbarui kolom perlu_ditinjau seluruh baris.
+  /// Lempar PeriodLockedException bila tanggalnya di periode terkunci.
   Future<int> insertTransaction(TransactionModel t) async {
+    checkWrite(date: DateTime.parse(t.date), lockedUntil: await lockedUntil());
     final db = await _open();
     final id = await db.insert('transactions', _writable(t));
     await syncReviewFlags();
     return id;
   }
 
-  /// Gagal (DatabaseException) bila baris dirujuk retur/pelunasan lain.
-  Future<void> deleteTransaction(int id) async {
+  /// Simpan hasil form. beli_aset_tetap: aset dan transaksinya dibuat dalam satu
+  /// transaksi DB (gagal salah satu = tidak ada yang tersimpan).
+  Future<int> insertDraft(TxDraft d) async {
+    final asset = d.asset;
+    if (asset == null) return insertTransaction(d.tx);
+    checkWrite(date: DateTime.parse(d.tx.date), lockedUntil: await lockedUntil());
     final db = await _open();
-    await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
+    final id = await db.transaction((txn) async {
+      final assetId = await txn.insert('fixed_assets', asset.toMap()..remove('id'));
+      return txn.insert('transactions', _writable(d.tx)..['asset_id'] = assetId);
+    });
+    await syncReviewFlags();
+    return id;
+  }
+
+  /// Ubah transaksi [d.tx.id]. Tanggal lama DAN baru harus di luar periode terkunci.
+  /// Tipe, asset_id, dan rujukan retur tidak berubah lewat jalur ini.
+  Future<void> updateDraft(TxDraft d) async {
+    final old = await transactionById(d.tx.id!);
+    if (old == null) throw StateError('transaksi #${d.tx.id} tidak ditemukan');
+    checkEdit(
+      oldDate: DateTime.parse(old.date),
+      newDate: DateTime.parse(d.tx.date),
+      lockedUntil: await lockedUntil(),
+    );
+    final db = await _open();
+    await db.transaction((txn) async {
+      await txn.update(
+        'transactions',
+        _writable(d.tx)
+          ..['tx_type'] = old.txType.code
+          ..['asset_id'] = old.assetId
+          ..['reversal_of'] = old.reversalOf,
+        where: 'id = ?',
+        whereArgs: [old.id],
+      );
+      final asset = d.asset;
+      if (asset != null && old.assetId != null) {
+        await txn.update('fixed_assets', asset.toMap()..remove('id'),
+            where: 'id = ?', whereArgs: [old.assetId]);
+      }
+    });
     await syncReviewFlags();
   }
 
+  /// Lempar PeriodLockedException bila di periode terkunci; DatabaseException bila
+  /// baris dirujuk retur/pelunasan lain. Aset tetap dari beli_aset_tetap ikut dihapus.
+  Future<void> deleteTransaction(int id) async {
+    final old = await transactionById(id);
+    if (old == null) return;
+    checkWrite(date: DateTime.parse(old.date), lockedUntil: await lockedUntil());
+    final db = await _open();
+    await db.transaction((txn) async {
+      await txn.delete('transactions', where: 'id = ?', whereArgs: [id]);
+      if (old.txType == TxType.beliAsetTetap && old.reversalOf == null && old.assetId != null) {
+        await txn.delete('fixed_assets', where: 'id = ?', whereArgs: [old.assetId]);
+      }
+    });
+    await syncReviewFlags();
+  }
+
+  /// Pilihan rujukan untuk form (piutang terbuka, transaksi yang bisa diretur).
+  Future<({List<RefOption> piutang, List<RefOption> retur})> rujukan({int? kecuali}) async =>
+      hitungRujukan(await transactions(), kecuali: kecuali);
+
   /// Laporan satu periode: Laba Rugi [from, asOf] (from null = sejak awal),
   /// Posisi Keuangan per asOf, ditambah ringkasan buku kas per asOf.
+  /// `opening` = Posisi Keuangan sehari sebelum `from` (untuk saldo awal ekuitas).
   Future<PeriodReport> loadReport({required DateTime asOf, DateTime? from}) async {
     final input = buildEngineInput(await transactions(), await fixedAssets());
     return PeriodReport(
@@ -68,6 +153,10 @@ class AccountingRepository {
       asOf,
       buildReport(input.txs, input.assets, asOf: asOf, from: from),
       cashBookSummary(input.txs, asOf: asOf),
+      opening: from == null
+          ? null
+          : buildReport(input.txs, input.assets,
+              asOf: DateTime(from.year, from.month, from.day - 1)),
     );
   }
 

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'accounting/engine.dart' show roundHalfAwayFromZero;
+import 'accounting/models.dart' show PeriodLockedException;
 import 'accounting/repository.dart';
+import 'accounting/tx_form_spec.dart' show labelTransaksi, pesanPeriodeTerkunci;
 import 'transaction_model.dart';
 import 'form_finance_page.dart';
 
 class ListFinancePage extends StatefulWidget {
-  const ListFinancePage({Key? key}) : super(key: key);
+  const ListFinancePage({super.key});
 
   @override
   State<ListFinancePage> createState() => _ListFinancePageState();
@@ -62,7 +64,7 @@ class _ListFinancePageState extends State<ListFinancePage> {
     } catch (e) { return dateStr; }
   }
 
-  String _label(TransactionModel t) => t.category.isNotEmpty ? t.category : t.txType.code;
+  String _label(TransactionModel t) => labelTransaksi(t);
 
   void _showDeleteDialog(TransactionModel item) {
     showDialog(
@@ -80,6 +82,8 @@ class _ListFinancePageState extends State<ListFinancePage> {
               Navigator.pop(ctx);
               try {
                 await _repo.deleteTransaction(item.id!);
+              } on PeriodLockedException catch (e) {
+                messenger.showSnackBar(SnackBar(duration: const Duration(seconds: 8), content: Text(pesanPeriodeTerkunci(e))));
               } catch (_) {
                 messenger.showSnackBar(const SnackBar(content: Text("Tidak bisa dihapus: transaksi dirujuk retur/pelunasan lain.")));
               }
@@ -112,7 +116,7 @@ class _ListFinancePageState extends State<ListFinancePage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [polbanBlue, polbanDarkBlue]),
               borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
-              boxShadow: [BoxShadow(color: polbanBlue.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+              boxShadow: [BoxShadow(color: polbanBlue.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))],
             ),
             child: Column(
               children: [
@@ -122,7 +126,7 @@ class _ListFinancePageState extends State<ListFinancePage> {
                 const SizedBox(height: 25),
                 Container(
                   padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(15)),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(15)),
                   child: Row(
                     children: [
                       _summaryItem(Icons.arrow_downward, Colors.lightGreenAccent, "Pemasukan", _pemasukan),
@@ -155,7 +159,7 @@ class _ListFinancePageState extends State<ListFinancePage> {
                             decoration: BoxDecoration(
                               color: Colors.white, 
                               borderRadius: BorderRadius.circular(18), 
-                              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4))]
+                              boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4))]
                             ),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -163,7 +167,7 @@ class _ListFinancePageState extends State<ListFinancePage> {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(color: statusColor.withOpacity(0.1), shape: BoxShape.circle),
+                                    decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), shape: BoxShape.circle),
                                     child: Icon(isNonTunai ? Icons.history_edu : (isMasuk ? Icons.arrow_downward : Icons.arrow_upward), color: statusColor, size: 22),
                                   ),
                                   const SizedBox(width: 15),
