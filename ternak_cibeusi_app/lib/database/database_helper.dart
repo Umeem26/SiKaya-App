@@ -70,6 +70,13 @@ class DatabaseHelper {
   /// Cadangan file DB yang sedang dipakai (sebelum tutup buku / reset).
   Future<String> backup(String label) async => copyDatabaseFile((await database).path, label);
 
+  /// Tutup koneksi; akses berikutnya membuka file lagi (dipakai saat memulihkan cadangan).
+  Future<void> close() async {
+    final db = _database;
+    _database = null;
+    await db?.close();
+  }
+
   // --- CRUD ASSET (inventaris, tidak dihitung di laporan keuangan) ---
   Future<int> create(AssetModel asset) async {
     final db = await instance.database;

@@ -1,6 +1,10 @@
 import 'dart:io';
+import 'package:file_selector/file_selector.dart' show XTypeGroup, getSaveLocation, openFile;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as pathlib;
+import 'package:share_plus/share_plus.dart' show Share, ShareResultStatus, XFile;
+import 'database/backup.dart';
 import 'database/database_helper.dart';
 import 'accounting/repository.dart';
 import 'accounting/tx_form_spec.dart' show formatRupiah;
@@ -55,6 +59,134 @@ class _SettingsPageState extends State<SettingsPage> {
 
   String _tgl(DateTime t) => DateFormat('dd-MM-yyyy').format(t);
 
+  bool get _seluler => Platform.isAndroid || Platform.isIOS;
+
+  /// Ekspor salinan file DB: Android lewat share sheet (Drive, WhatsApp, Files),
+  /// desktop lewat dialog simpan. true bila tersimpan/terbagi; false bila dibatalkan/gagal.
+  Future<bool> _eksporCadangan({bool beriTahu = true}) async {
+    final nama = backupFileName(DateTime.now());
+    try {
+      final String tujuan;
+      if (_seluler) {
+        final path = await BackupService.instance.exportTo(pathlib.join((await getTemporaryDirectory()).path, nama));
+        final res = await Share.shareXFiles([XFile(path, mimeType: 'application/octet-stream')], subject: nama);
+        if (res.status == ShareResultStatus.dismissed) return false;
+        tujuan = nama;
+      } else {
+        final loc = await getSaveLocation(
+          suggestedName: nama,
+          acceptedTypeGroups: const [XTypeGroup(label: 'Cadangan SiKaya', extensions: ['db'])],
+        );
+        if (loc == null) return false;
+        tujuan = await BackupService.instance.exportTo(loc.path);
+      }
+      if (beriTahu) {
+        _showDialog("Cadangan Tersimpan",
+            "$tujuan\n\nSimpan file ini di tempat lain (Google Drive, WhatsApp, flashdisk). "
+            "Pulihkan lewat menu Pulihkan Cadangan.");
+      }
+      return true;
+    } catch (e) {
+      _showDialog("Ekspor Gagal", "Data tidak diubah.\n$e");
+      return false;
+    }
+  }
+
+  String _ringkas(BackupSummary s) =>
+      "${s.transaksi} transaksi, ${s.asetTetap} aset tetap, ${s.inventaris} barang inventaris"
+      "${s.tanggalAwal == null ? '' : '\nTanggal transaksi: ${s.tanggalAwal} s.d. ${s.tanggalAkhir}'}"
+      "${s.ditutupSampai == null ? '' : '\nDitutup buku sampai: ${s.ditutupSampai}'}";
+
+  /// Pilih file, periksa, tampilkan ringkasan, lalu ganti data saat ini.
+  Future<void> _pulihkanCadangan() async {
+    final svc = BackupService.instance;
+    final file = await openFile(
+      // Android memfilter dengan MIME; file .db tidak punya MIME baku, jadi semua file ditampilkan.
+      acceptedTypeGroups: _seluler ? const [] : const [XTypeGroup(label: 'Cadangan SiKaya', extensions: ['db'])],
+    );
+    if (file == null) return;
+    final BackupSummary isi, sekarang;
+    try {
+      isi = await svc.inspect(file.path);
+      sekarang = await svc.currentSummary();
+    } on BackupInvalidException catch (e) {
+      _showDialog("File Ditolak", "${e.pesan}\n\nData saat ini tidak diubah.");
+      return;
+    }
+    if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Pulihkan Cadangan?"),
+        content: SingleChildScrollView(
+          child: Text(
+            "File: ${file.name}\n\n"
+            "Isi cadangan:\n${_ringkas(isi)}\n\n"
+            "Data saat ini akan DIGANTI seluruhnya:\n${_ringkas(sekarang)}\n\n"
+            "Sebelum diganti, data saat ini disalin otomatis sebagai cadangan di folder database aplikasi.",
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Batal")),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Pulihkan")),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final RestoreResult r;
+    try {
+      r = await svc.restoreFrom(file.path);
+    } on BackupInvalidException catch (e) {
+      _showDialog("File Ditolak", "${e.pesan}\n\nData saat ini tidak diubah.");
+      return;
+    } catch (e) {
+      _showDialog("Pemulihan Gagal", "$e");
+      return;
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Cadangan Dipulihkan"),
+        content: Text("${_ringkas(r.dipulihkan)}\n\nData sebelumnya disimpan di:\n${r.cadanganOtomatis}"),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))],
+      ),
+    );
+    if (!mounted) return;
+    // Muat ulang semua halaman dengan data baru.
+    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const SplashPage()), (route) => false);
+  }
+
+  /// Sebelum tutup buku: tawarkan ekspor cadangan. false = pengguna membatalkan tutup buku.
+  Future<bool> _tawarkanCadangan() async {
+    while (true) {
+      if (!mounted) return false;
+      final pilih = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Ekspor Cadangan Dulu?"),
+          content: const SingleChildScrollView(
+            child: Text(
+              "Tutup buku mengunci periode secara permanen.\n\n"
+              "Aplikasi memang menyalin database otomatis, tetapi salinan itu ada di folder aplikasi: "
+              "ikut hilang bila aplikasi di-uninstall, datanya dihapus, atau HP rusak/hilang. "
+              "Tanpa cadangan di tempat lain, data tidak bisa dipulihkan.",
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Lewati")),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Ekspor Cadangan")),
+          ],
+        ),
+      );
+      if (pilih == null) return false;
+      if (!pilih) return true;
+      if (await _eksporCadangan(beriTahu: false)) return true;
+      // Dibatalkan/gagal: tanya lagi.
+    }
+  }
+
   /// Tutup buku non-destruktif (AccountingRepository.closeBook). Teks dialog
   /// menjelaskan persis apa yang dilakukan closeBook.
   Future<void> _tutupBuku() async {
@@ -85,6 +217,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _showDialog("Tidak Bisa Tutup Buku", e.pesan);
       return;
     }
+    if (!await _tawarkanCadangan()) return;
     if (!mounted) return;
     final dari = p.from == null ? "awal pencatatan" : _tgl(p.from!);
     final ok = await showDialog<bool>(
@@ -186,7 +319,11 @@ class _SettingsPageState extends State<SettingsPage> {
             // MENU ITEMS
             _header("Manajemen Data"),
             _menuCard([
-              _tile(Icons.download_rounded, "Backup Data", "Simpan ke CSV", Colors.green, _backupData),
+              _tile(Icons.save_alt_rounded, "Ekspor Cadangan", "Salinan lengkap data (bisa dipulihkan)", Colors.green, _eksporCadangan),
+              const Divider(height: 1),
+              _tile(Icons.restore_rounded, "Pulihkan Cadangan", "Ganti data dengan file cadangan", Colors.orange, _pulihkanCadangan),
+              const Divider(height: 1),
+              _tile(Icons.download_rounded, "Backup Data", "Simpan ke CSV (tidak bisa dipulihkan)", Colors.green, _backupData),
               const Divider(height: 1),
               _tile(Icons.history_edu_rounded, "Tutup Buku", "Kunci periode & catat laba ke Saldo Laba", polbanBlue, _tutupBuku),
             ]),
