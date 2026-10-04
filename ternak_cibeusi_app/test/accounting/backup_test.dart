@@ -110,6 +110,22 @@ void main() {
     expect(await keadaan(), berubah);
   });
 
+  test('peringatan pulihkan menyebut transaksi dan tutup buku sesudah cadangan hilang', () {
+    BackupSummary s({String? akhir, String? tutup}) => BackupSummary(
+        versi: dbVersion, transaksi: 1, asetTetap: 0, inventaris: 0,
+        tanggalAwal: akhir, tanggalAkhir: akhir, ditutupSampai: tutup);
+    final umum = peringatanPulihkan(s(akhir: '2026-02-10', tutup: '2026-01-31'), s(tutup: '2026-01-31'));
+    expect(umum, contains('transaksi sampai tanggal 2026-02-10'));
+    expect(umum, contains('Semua transaksi dan tutup buku yang dicatat sesudah cadangan ini dibuat akan HILANG'));
+    expect(umum, isNot(contains('Tutup buku sampai')));
+
+    expect(peringatanPulihkan(s(akhir: '2026-02-10', tutup: '2026-01-31'), s(tutup: '2026-02-28')),
+        contains('Tutup buku sampai 2026-02-28 pada data saat ini akan hilang; '
+            'cadangan hanya ditutup sampai 2026-01-31.'));
+    expect(peringatanPulihkan(s(), s(tutup: '2026-02-28')),
+        allOf(contains('tidak berisi transaksi'), contains('cadangan belum pernah ditutup buku')));
+  });
+
   group('file ditolak tanpa mengubah data', () {
     Future<void> ditolak(String file, Matcher pesan) async {
       final sebelum = await keadaan();

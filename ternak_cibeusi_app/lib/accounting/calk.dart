@@ -126,8 +126,11 @@ List<CalkSection> buildCalk({
       'SAK EMKM tidak mengatur aset biologis. Sebagai kebijakan manajemen, DOC/bibit dan '
           'ternak dicatat sebagai Persediaan Ternak sebesar biaya perolehan dan dipindahkan ke '
           'Beban Pokok Penjualan saat ternak keluar karena terjual.',
-      'Pakan dan obat yang dipakai diakui langsung sebagai beban pakan dan beban obat, tidak '
-          'ditambahkan ke nilai ternak.',
+      'Pakan dan obat yang dipakai diakui langsung sebagai Beban Pakan dan Beban Obat pada '
+          'periode pemakaian, tidak ditambahkan ke nilai ternak. Alokasi pakan ke nilai ternak '
+          'ditunda sampai tersedia pencatatan per batch/siklus dan jumlah populasi.',
+      'Akibatnya, laba per periode dapat berfluktuasi: pada periode pemeliharaan beban pakan '
+          'sudah diakui sementara pendapatan baru diakui saat ternak terjual.',
       'Kematian ternak diakui sebagai Beban Kerugian Ternak sebesar biaya rata-rata tertimbang '
           'ternak yang mati.',
     ]),

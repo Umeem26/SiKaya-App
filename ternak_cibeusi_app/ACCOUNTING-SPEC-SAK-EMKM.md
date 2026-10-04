@@ -22,7 +22,7 @@ B3. Pendapatan: diakui saat ada hak atas pembayaran (barang/jasa sudah diserahka
 B4. Liabilitas: sebesar jumlah yang harus dibayar. Pokok pinjaman BUKAN pendapatan. Cicilan pokok BUKAN beban; bunga = beban.
 B5. Ekuitas = Modal disetor + Saldo Laba. Setoran modal BUKAN pendapatan. Prive (penarikan pemilik) mengurangi ekuitas, BUKAN beban.
 B6. Saldo Laba = akumulasi (pendapatan - beban) dikurangi distribusi ke pemilik.
-B7. Aset biologis (kebijakan SiKaya, bukan dari SAK EMKM, **butuh keputusan pemilik + review akuntan**): DOC/bibit dan pakan yang dikonsumsi ternak dikumpulkan sebagai Persediaan/Aset Ternak sebesar biaya perolehan, lalu dipindah ke Beban Pokok Penjualan saat ternak terjual atau panen. Kematian ternak di luar kewajaran = Beban kerugian ternak.
+B7. Aset biologis (kebijakan SiKaya, bukan dari SAK EMKM, **butuh keputusan pemilik + review akuntan**): DOC/bibit dicatat sebagai Persediaan Ternak sebesar biaya perolehan, lalu dipindah ke Beban Pokok Penjualan saat ternak keluar karena terjual atau panen. **Pakan dan obat yang dipakai langsung menjadi Beban Pakan / Beban Obat** pada periode pemakaian, tidak ditambahkan ke nilai ternak. Alokasi pakan ke nilai ternak ditunda sampai ada fitur batch/siklus dan jumlah populasi. Akibatnya laba per periode bisa berfluktuasi (beban pakan diakui sebelum ternak terjual); ini diungkap di CaLK. Kematian ternak di luar kewajaran = Beban kerugian ternak (qty mati × biaya rata-rata tertimbang).
 
 ## C. Tipe transaksi eksplisit (ganti pencocokan substring nama kategori)
 | Tipe | Debit | Kredit | Pengaruh Laba Rugi |

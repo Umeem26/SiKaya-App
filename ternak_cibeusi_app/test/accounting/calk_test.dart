@@ -43,6 +43,13 @@ void main() {
     }
   });
 
+  test('B7: pakan langsung jadi beban, alokasi ke ternak ditunda, laba bisa berfluktuasi', () {
+    final t = calk([modal], const [], '2026-01-31');
+    expect(t, contains('diakui langsung sebagai Beban Pakan'));
+    expect(t, contains('ditunda sampai tersedia pencatatan per batch/siklus dan jumlah populasi'));
+    expect(t, contains('laba per periode dapat berfluktuasi'));
+  });
+
   test('jumlah dan metode aset mengikuti data', () {
     final kosong = calk([modal], [peralatan, tanah], '2026-01-05');
     expect(kosong, contains('Belum ada aset tetap per 05-01-2026.'));

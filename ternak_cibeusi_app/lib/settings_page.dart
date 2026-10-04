@@ -123,6 +123,7 @@ class _SettingsPageState extends State<SettingsPage> {
             "File: ${file.name}\n\n"
             "Isi cadangan:\n${_ringkas(isi)}\n\n"
             "Data saat ini akan DIGANTI seluruhnya:\n${_ringkas(sekarang)}\n\n"
+            "${peringatanPulihkan(isi, sekarang)}\n\n"
             "Sebelum diganti, data saat ini disalin otomatis sebagai cadangan di folder database aplikasi.",
           ),
         ),
@@ -323,7 +324,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const Divider(height: 1),
               _tile(Icons.restore_rounded, "Pulihkan Cadangan", "Ganti data dengan file cadangan", Colors.orange, _pulihkanCadangan),
               const Divider(height: 1),
-              _tile(Icons.download_rounded, "Backup Data", "Simpan ke CSV (tidak bisa dipulihkan)", Colors.green, _backupData),
+              _tile(Icons.download_rounded, "Ekspor CSV (untuk dibuka di Excel)", "Bukan cadangan; tidak bisa dipulihkan", Colors.green, _backupData),
               const Divider(height: 1),
               _tile(Icons.history_edu_rounded, "Tutup Buku", "Kunci periode & catat laba ke Saldo Laba", polbanBlue, _tutupBuku),
             ]),

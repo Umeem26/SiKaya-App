@@ -55,6 +55,23 @@ class BackupSummary {
   final String? ditutupSampai;
 }
 
+/// Peringatan di dialog konfirmasi pulihkan: apa yang hilang bila [isi] menggantikan [sekarang].
+String peringatanPulihkan(BackupSummary isi, BackupSummary sekarang) {
+  final sampai = isi.tanggalAkhir == null
+      ? 'Cadangan ini tidak berisi transaksi.'
+      : 'Cadangan berisi transaksi sampai tanggal ${isi.tanggalAkhir}.';
+  final semua = '$sampai Semua transaksi dan tutup buku yang dicatat sesudah cadangan ini '
+      'dibuat akan HILANG.';
+  final kunci = sekarang.ditutupSampai, kunciCadangan = isi.ditutupSampai;
+  if (kunci == null || (kunciCadangan != null && kunci.compareTo(kunciCadangan) <= 0)) {
+    return semua;
+  }
+  final cadangan = kunciCadangan == null
+      ? 'cadangan belum pernah ditutup buku'
+      : 'cadangan hanya ditutup sampai $kunciCadangan';
+  return '$semua Tutup buku sampai $kunci pada data saat ini akan hilang; $cadangan.';
+}
+
 class RestoreResult {
   const RestoreResult(this.dipulihkan, this.cadanganOtomatis);
 
