@@ -1,7 +1,10 @@
 // Beranda (UI-PLAN.md bagian 3.1): keadaan usaha bulan ini dalam 5 detik.
 // Semua angka dari AccountingRepository.loadReport (satu sumber kebenaran);
 // layar ini tidak menghitung akuntansi sendiri.
+// Tampilan mengikuti UI lama (docs/ref-lama): header biru melengkung dengan
+// sapaan dan nama usaha, kartu utama bergradien yang menumpuk ke header.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'accounting/models.dart';
@@ -11,6 +14,7 @@ import 'form_finance_page.dart';
 import 'transaction_model.dart';
 import 'ui/item_catatan.dart';
 import 'ui/komponen.dart';
+import 'ui/theme.dart';
 import 'ui/tokens.dart';
 
 class RingkasanBeranda {
@@ -84,6 +88,14 @@ Future<RingkasanBeranda> muatBerandaAplikasi(AccountingRepository repo, {DateTim
 String teksPeriode(DateTime dari, DateTime sampai) =>
     'Bulan ini: ${dari.day}–${sampai.day} ${namaBulan[sampai.month - 1]} ${sampai.year}';
 
+/// Sapaan menurut jam (header Beranda).
+String sapaan(DateTime t) => switch (t.hour) {
+      < 11 => 'Selamat pagi',
+      < 15 => 'Selamat siang',
+      < 18 => 'Selamat sore',
+      _ => 'Selamat malam',
+    };
+
 class BerandaPage extends StatefulWidget {
   const BerandaPage({super.key, this.muat, this.repo, this.hariIni, this.onLihatCatatan});
 
@@ -94,7 +106,7 @@ class BerandaPage extends StatefulWidget {
   /// Pengganti "sekarang" (tes); null = DateTime.now().
   final DateTime? hariIni;
 
-  /// Pindah ke daftar catatan (tab Catatan) untuk memeriksa yang perlu dicek.
+  /// Pindah ke daftar catatan (tab Catat) untuk memeriksa yang perlu dicek.
   final VoidCallback? onLihatCatatan;
 
   @override
@@ -123,116 +135,192 @@ class _BerandaPageState extends State<BerandaPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Beranda')),
-      // Aksi utama selalu terlihat, tidak ikut tergulir.
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: TombolUtama(label: 'Apa yang terjadi?', ikon: Icons.edit_note, onPressed: _catat),
+    // Tanpa app bar: header merek sampai ke balik status bar (ikon status putih).
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: gayaSistem,
+      child: Scaffold(
+        // Aksi utama selalu terlihat, tidak ikut tergulir.
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s8, Jarak.s16, Jarak.s8),
+            child: TombolUtama(label: 'Apa yang terjadi?', ikon: Icons.edit_note_rounded, onPressed: _catat),
+          ),
         ),
-      ),
-      body: FutureBuilder<RingkasanBeranda>(
-        future: _data,
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return ListView(padding: const EdgeInsets.all(16), children: [
-              BannerPeringatan(
-                judul: 'Data tidak bisa dibaca',
-                isi: '${snap.error}',
-                nada: Nada.error,
-                aksi: 'Coba lagi',
-                ikonAksi: Icons.refresh,
-                onAksi: _muatUlang,
+        body: FutureBuilder<RingkasanBeranda>(
+          future: _data,
+          builder: (context, snap) {
+            if (snap.hasError) {
+              return SafeArea(
+                child: ListView(padding: const EdgeInsets.all(Jarak.s16), children: [
+                  BannerPeringatan(
+                    judul: 'Data tidak bisa dibaca',
+                    isi: '${snap.error}',
+                    nada: Nada.error,
+                    aksi: 'Coba lagi',
+                    ikonAksi: Icons.refresh_rounded,
+                    onAksi: _muatUlang,
+                  ),
+                ]),
+              );
+            }
+            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+            // Status bar transparan: beri latar biru agar ikon status tetap terbaca saat isi digulir.
+            return Stack(children: [
+              RefreshIndicator(
+                onRefresh: () async => _muatUlang(),
+                child: _isi(snap.data!),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: MediaQuery.paddingOf(context).top,
+                child: const ColoredBox(color: Warna.primer),
               ),
             ]);
-          }
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          return RefreshIndicator(
-            onRefresh: () async => _muatUlang(),
-            child: _isi(snap.data!),
-          );
-        },
+          },
+        ),
       ),
     );
   }
 
-  Widget _isi(RingkasanBeranda r) {
+  Widget _kepala(RingkasanBeranda r, double tumpuk) {
     final t = Theme.of(context).textTheme;
+    return HeaderMerek(
+      bawah: tumpuk + Jarak.s16,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Sapaan hanya hiasan: tidak ditampilkan bila huruf sangat besar agar nama usaha muat utuh.
+              if (MediaQuery.textScalerOf(context).scale(10) <= 15) ...[
+                Text('${sapaan(widget.hariIni ?? DateTime.now())}, Juragan',
+                    style: t.bodyLarge!.copyWith(color: Warna.primerPudar)),
+                const SizedBox(height: Jarak.s4),
+              ],
+              // Nama usaha hanya judul: maks 3 baris agar angka penting tetap muat di layar.
+              Text(r.namaUsaha,
+                  style: t.titleLarge!.copyWith(color: Warna.putih), maxLines: 3, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+          const SizedBox(width: Jarak.s12),
+          Container(
+            width: 52,
+            height: 52,
+            padding: const EdgeInsets.all(Jarak.s4),
+            decoration: const BoxDecoration(color: Warna.putih, shape: BoxShape.circle),
+            child: ClipOval(child: Image.asset('assets/icon_ayam.png', fit: BoxFit.contain)),
+          ),
+        ]),
+        const SizedBox(height: Jarak.s12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: Jarak.s12, vertical: Jarak.s4),
+          decoration: BoxDecoration(color: const Color(0x29FFFFFF), borderRadius: BorderRadius.circular(999)),
+          child: Text.rich(
+            TextSpan(children: [
+              const WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Icon(Icons.calendar_month_rounded, size: 18, color: Warna.putih),
+              ),
+              TextSpan(text: ' ${teksPeriode(r.dari, r.sampai)}'),
+            ]),
+            style: t.bodySmall!.copyWith(color: Warna.putih, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _isi(RingkasanBeranda r) {
     final untung = r.labaBersih >= 0;
-    const jarak = SizedBox(height: 16);
+    const jarak = SizedBox(height: Jarak.s16);
+    const tumpuk = 48.0; // kartu utama naik ke header sebanyak ini
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.zero,
       children: [
-        // Nama usaha hanya judul: maks 2 baris agar angka penting tetap muat di layar.
-        Text(r.namaUsaha, style: t.titleLarge, maxLines: 2, overflow: TextOverflow.ellipsis),
-        Text(teksPeriode(r.dari, r.sampai), style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
-        if (r.perluDitinjau case final w?) ...[
-          jarak,
-          BannerPeringatan(
-            judul: '${w.jumlahTransaksi} catatan perlu dicek',
-            isi: 'Catatan ini belum dihitung dalam angka di bawah (total ${rupiah(w.totalNilai)}). '
-                'Buka Catatan, lalu ubah atau hapus yang salah.',
-            aksi: 'Lihat catatan',
-            ikonAksi: Icons.list_alt,
-            onAksi: widget.onLihatCatatan,
+        _kepala(r, tumpuk),
+        // Isi naik menumpuk ke header (gaya UI lama); ruang kosong di ujung bawah daftar = tumpuk.
+        Transform.translate(
+          offset: const Offset(0, -tumpuk),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Jarak.s16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              KartuAngka(
+                utama: true,
+                judul: untung ? 'Untung bulan ini' : 'Rugi bulan ini',
+                nilai: rupiah(r.labaBersih.abs()),
+                ikon: untung ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                nada: untung ? Nada.sukses : Nada.error,
+                keterangan: 'Penjualan dikurangi biaya yang terpakai bulan ini, termasuk pakan '
+                    'dan penyusutan. Uang masuk belum tentu untung.',
+              ),
+              if (r.perluDitinjau case final w?) ...[
+                jarak,
+                BannerPeringatan(
+                  judul: '${w.jumlahTransaksi} catatan perlu dicek',
+                  isi: 'Catatan ini belum dihitung dalam angka di bawah (total ${rupiah(w.totalNilai)}). '
+                      'Buka Catatan, lalu ubah atau hapus yang salah.',
+                  aksi: 'Lihat catatan',
+                  ikonAksi: Icons.list_alt_rounded,
+                  onAksi: widget.onLihatCatatan,
+                ),
+              ],
+              if (!r.seimbang) ...[
+                jarak,
+                const BannerPeringatan(
+                  judul: 'Laporan tidak seimbang',
+                  isi: 'Jumlah harta tidak sama dengan utang ditambah modal. '
+                      'Jangan tutup buku dulu; minta bantuan pendamping untuk memeriksa catatan.',
+                  nada: Nada.error,
+                ),
+              ],
+              jarak,
+              KisiKartu(children: [
+                KartuAngka(
+                  judul: 'Uang masuk',
+                  nilai: bertanda(r.uangMasuk),
+                  ikon: Icons.south_west_rounded,
+                  nada: Nada.sukses,
+                  keterangan: 'Penjualan tunai, pelunasan piutang, pinjaman, dan modal.',
+                ),
+                KartuAngka(
+                  judul: 'Uang keluar',
+                  nilai: bertanda(-r.uangKeluar),
+                  ikon: Icons.north_east_rounded,
+                  nada: Nada.peringatan,
+                  keterangan: 'Belanja, biaya, cicilan, dan ambilan pribadi.',
+                ),
+              ]),
+              jarak,
+              KartuAngka(
+                judul: 'Uang kas sekarang',
+                nilai: rupiah(r.kasSekarang),
+                ikon: Icons.account_balance_wallet_rounded,
+                keterangan: 'Sisa uang tunai menurut catatan.',
+              ),
+              const SizedBox(height: Jarak.s24),
+              const JudulSeksi('Catatan terakhir'),
+              const SizedBox(height: Jarak.s8),
+              if (r.terakhir.isEmpty)
+                const Card(
+                  child: KosongRamah(
+                    ikon: Icons.edit_note_rounded,
+                    judul: 'Belum ada catatan',
+                    isi: 'Belum ada catatan. Tekan "Apa yang terjadi?" di bawah untuk mencatat.',
+                  ),
+                ),
+              for (final c in r.terakhir) ...[
+                ItemCatatan(catatan: c, onTap: () => _buka(DetailCatatanPage(catatan: c, repo: widget.repo))),
+                const SizedBox(height: Jarak.s8),
+              ],
+              if (r.terakhir.isNotEmpty && widget.onLihatCatatan != null) ...[
+                const SizedBox(height: Jarak.s4),
+                TombolKedua(
+                    label: 'Lihat semua catatan', ikon: Icons.list_alt_rounded, onPressed: widget.onLihatCatatan),
+              ],
+            ]),
           ),
-        ],
-        if (!r.seimbang) ...[
-          jarak,
-          const BannerPeringatan(
-            judul: 'Laporan tidak seimbang',
-            isi: 'Jumlah harta tidak sama dengan utang ditambah modal. '
-                'Jangan tutup buku dulu; minta bantuan pendamping untuk memeriksa catatan.',
-            nada: Nada.error,
-          ),
-        ],
-        jarak,
-        KartuAngka(
-          judul: 'Uang masuk',
-          nilai: bertanda(r.uangMasuk),
-          ikon: Icons.south_west,
-          nada: Nada.sukses,
-          keterangan: 'Uang yang diterima bulan ini: penjualan tunai, pelunasan piutang, '
-              'pinjaman, dan modal.',
         ),
-        jarak,
-        KartuAngka(
-          judul: 'Uang keluar',
-          nilai: bertanda(-r.uangKeluar),
-          ikon: Icons.north_east,
-          keterangan: 'Uang yang dibayarkan bulan ini: belanja, biaya, cicilan, dan ambilan pribadi.',
-        ),
-        jarak,
-        KartuAngka(
-          judul: untung ? 'Untung bulan ini' : 'Rugi bulan ini',
-          nilai: rupiah(r.labaBersih.abs()),
-          ikon: untung ? Icons.trending_up : Icons.trending_down,
-          nada: untung ? Nada.sukses : Nada.error,
-          keterangan: 'Penjualan dikurangi biaya yang terpakai bulan ini, termasuk pakan '
-              'dan penyusutan. Uang masuk belum tentu untung.',
-        ),
-        jarak,
-        KartuAngka(
-          judul: 'Uang kas sekarang',
-          nilai: rupiah(r.kasSekarang),
-          ikon: Icons.account_balance_wallet_outlined,
-          keterangan: 'Sisa uang tunai menurut catatan.',
-        ),
-        const SizedBox(height: 24),
-        Semantics(header: true, child: Text('Catatan terakhir', style: t.titleMedium)),
-        const SizedBox(height: 8),
-        if (r.terakhir.isEmpty)
-          Text('Belum ada catatan. Tekan "Apa yang terjadi?" di bawah untuk mencatat.', style: t.bodyLarge),
-        for (final c in r.terakhir) ...[
-          ItemCatatan(catatan: c, onTap: () => _buka(DetailCatatanPage(catatan: c, repo: widget.repo))),
-          const SizedBox(height: 8),
-        ],
-        if (r.terakhir.isNotEmpty && widget.onLihatCatatan != null) ...[
-          const SizedBox(height: 4),
-          TombolKedua(label: 'Lihat semua catatan', ikon: Icons.list_alt, onPressed: widget.onLihatCatatan),
-        ],
-        const SizedBox(height: 24),
       ],
     );
   }

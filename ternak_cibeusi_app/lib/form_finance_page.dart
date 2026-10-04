@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'accounting/engine.dart' show cashDirection;
 import 'accounting/models.dart';
 import 'accounting/repository.dart';
 import 'accounting/tx_form_spec.dart';
@@ -199,7 +200,7 @@ class _FormFinancePageState extends State<FormFinancePage> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: TombolUtama(
                     label: _saving ? 'Menyimpan...' : (_isEdit ? 'Simpan perubahan' : 'Simpan'),
-                    ikon: Icons.save,
+                    ikon: Icons.save_rounded,
                     onPressed: _saving ? null : _simpan,
                   ),
                 ),
@@ -220,22 +221,28 @@ class _FormFinancePageState extends State<FormFinancePage> {
     return null;
   }
 
+  /// Nada ubin per jenis: arah kas bila jelas (masuk hijau, keluar oranye tua), selain itu biru.
+  Nada _nadaJenis(TxType? t) => t == null ? Nada.netral : nadaArah(cashDirection(t));
+
   Widget _pilihTipe() {
     final t = Theme.of(context).textTheme;
     return ListView(
       key: const PageStorageKey('pilih-kejadian'),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        Text('Pilih yang paling sesuai dengan kejadiannya.', style: t.bodyLarge),
+        Text('Pilih yang paling sesuai dengan kejadiannya.',
+            style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
         for (final k in kelompokCatat) ...[
-          const SizedBox(height: 20),
-          Semantics(header: true, child: Text(k.judul, style: t.titleMedium)),
+          const SizedBox(height: Jarak.s24),
+          JudulSeksi(k.judul),
           for (final s in k.pilihan) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: Jarak.s12),
             KartuPilihan(
               judul: s.label,
               penjelasan: s.penjelasan,
               alasanNonaktif: _alasanNonaktif(s),
+              ikon: ikonJenis(s.type),
+              nada: _nadaJenis(s.type),
               onTap: () => setState(() => _pilih(s)),
             ),
           ],
@@ -258,16 +265,20 @@ class _FormFinancePageState extends State<FormFinancePage> {
       key: ObjectKey(spec),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        Text(spec.label, style: t.headlineSmall),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          UbinIkon(ikonJenis(spec.type), nada: _nadaJenis(spec.type), ukuran: 52),
+          const SizedBox(width: Jarak.s12),
+          Expanded(child: Text(spec.label, style: t.titleLarge)),
+        ]),
         if (spec.penjelasan != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: Jarak.s8),
           Text(spec.penjelasan!, style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
         ],
         if (!_isEdit) ...[
           const SizedBox(height: 12),
           TombolKedua(
             label: 'Ganti pilihan',
-            ikon: Icons.swap_horiz,
+            ikon: Icons.swap_horiz_rounded,
             onPressed: () => setState(() => _spec = null),
           ),
         ],

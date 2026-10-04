@@ -76,7 +76,7 @@ class _ReportPageState extends State<ReportPage> {
                 isi: '${snap.error}',
                 nada: Nada.error,
                 aksi: 'Coba lagi',
-                ikonAksi: Icons.refresh,
+                ikonAksi: Icons.refresh_rounded,
                 onAksi: () => setState(() {
                   _data = _muat();
                 }),
@@ -94,7 +94,7 @@ class _ReportPageState extends State<ReportPage> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TombolUtama(
               label: 'Lihat laporan resmi',
-              ikon: Icons.description_outlined,
+              ikon: Icons.description_rounded,
               onPressed: snap.data == null
                   ? null
                   : () => Navigator.push(
@@ -123,7 +123,7 @@ class _ReportPageState extends State<ReportPage> {
             TombolPilihan(
               label: labelPeriode[p]!,
               terpilih: p == _pilihan,
-              ikon: Icons.calendar_month,
+              ikon: Icons.calendar_month_rounded,
               onPressed: () => _pilihPeriode(p),
             ),
         ]),
@@ -151,7 +151,7 @@ class _ReportPageState extends State<ReportPage> {
         KartuAngka(
           judul: 'Uang masuk',
           nilai: bertanda(d.uangMasuk),
-          ikon: Icons.south_west,
+          ikon: Icons.south_west_rounded,
           nada: Nada.sukses,
           keterangan: 'Uang tunai yang diterima dalam waktu ini: penjualan tunai, pelunasan piutang, '
               'pinjaman, dan modal.',
@@ -160,14 +160,14 @@ class _ReportPageState extends State<ReportPage> {
         KartuAngka(
           judul: 'Uang keluar',
           nilai: bertanda(-d.uangKeluar),
-          ikon: Icons.north_east,
+          ikon: Icons.north_east_rounded,
           keterangan: 'Uang tunai yang dibayarkan dalam waktu ini: belanja, biaya, cicilan, dan ambilan pribadi.',
         ),
         jarak,
         KartuAngka(
           judul: untung ? 'Untung' : 'Rugi',
           nilai: rupiah(d.untungRugi.abs()),
-          ikon: untung ? Icons.trending_up : Icons.trending_down,
+          ikon: untung ? Icons.trending_up_rounded : Icons.trending_down_rounded,
           nada: untung ? Nada.sukses : Nada.error,
           keterangan: 'Penjualan ${rupiah(d.penjualan)} dikurangi biaya ${rupiah(d.biaya)}, termasuk pakan '
               'yang terpakai dan penyusutan. Uang masuk belum tentu untung.',
@@ -176,28 +176,28 @@ class _ReportPageState extends State<ReportPage> {
         KartuAngka(
           judul: 'Uang kas di akhir waktu ini',
           nilai: rupiah(d.kasAkhir),
-          ikon: Icons.account_balance_wallet_outlined,
+          ikon: Icons.account_balance_wallet_rounded,
           keterangan: 'Sisa uang tunai usaha menurut catatan pada ${tanggalResmi(d.sampai)}.',
         ),
         jarak,
         KartuAngka(
           judul: 'Nilai stok',
           nilai: rupiah(d.nilaiStok),
-          ikon: Icons.inventory_2_outlined,
+          ikon: Icons.inventory_2_rounded,
           keterangan: 'Pakan, obat, dan ternak yang masih ada, dihitung dari harga beli rata-rata.',
         ),
         jarak,
         KartuAngka(
           judul: 'Nilai kandang & peralatan',
           nilai: rupiah(d.nilaiAsetTetap),
-          ikon: Icons.warehouse_outlined,
+          ikon: Icons.warehouse_rounded,
           keterangan: 'Harga beli dikurangi penyusutan, yaitu bagian yang sudah terpakai selama ini.',
         ),
         jarak,
         KartuAngka(
           judul: 'Utang',
           nilai: rupiah(d.utang),
-          ikon: Icons.call_made,
+          ikon: Icons.call_made_rounded,
           nada: d.utang > 0 ? Nada.peringatan : Nada.netral,
           keterangan: 'Yang masih harus Anda bayar ke penjual atau pemberi pinjaman.',
         ),
@@ -205,7 +205,7 @@ class _ReportPageState extends State<ReportPage> {
         KartuAngka(
           judul: 'Piutang',
           nilai: rupiah(d.piutang),
-          ikon: Icons.call_received,
+          ikon: Icons.call_received_rounded,
           keterangan: 'Yang masih harus dibayar pembeli kepada Anda.',
         ),
       ],

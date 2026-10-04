@@ -8,6 +8,7 @@ import 'form_finance_page.dart';
 import 'transaction_model.dart';
 import 'ui/item_catatan.dart';
 import 'ui/komponen.dart';
+import 'ui/tokens.dart';
 
 class ListFinancePage extends StatefulWidget {
   const ListFinancePage({super.key, this.repo, this.hariIni});
@@ -45,7 +46,7 @@ class _ListFinancePageState extends State<ListFinancePage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: TombolUtama(
             label: 'Apa yang terjadi?',
-            ikon: Icons.edit_note,
+            ikon: Icons.edit_note_rounded,
             onPressed: () => _buka(FormFinancePage(repo: widget.repo, hariIni: widget.hariIni)),
           ),
         ),
@@ -60,7 +61,7 @@ class _ListFinancePageState extends State<ListFinancePage> {
                 isi: '${snap.error}',
                 nada: Nada.error,
                 aksi: 'Coba lagi',
-                ikonAksi: Icons.refresh,
+                ikonAksi: Icons.refresh_rounded,
                 onAksi: _muatUlang,
               ),
             ]);
@@ -92,11 +93,17 @@ class _ListFinancePageState extends State<ListFinancePage> {
           judul: '$perluDicek catatan perlu dicek',
           isi: 'Catatan ini belum dihitung di laporan. Ketuk catatannya, lalu ubah atau hapus.',
           aksi: _hanyaPerluDicek ? 'Tampilkan semua catatan' : 'Tampilkan yang perlu dicek saja',
-          ikonAksi: _hanyaPerluDicek ? Icons.list : Icons.filter_alt,
+          ikonAksi: _hanyaPerluDicek ? Icons.list_rounded : Icons.filter_alt_rounded,
           onAksi: () => setState(() => _hanyaPerluDicek = !_hanyaPerluDicek),
         ),
       if (semua.isEmpty)
-        Text('Belum ada catatan. Tekan "Apa yang terjadi?" di bawah untuk mencatat.', style: t.bodyLarge),
+        const Card(
+          child: KosongRamah(
+            ikon: Icons.edit_note_rounded,
+            judul: 'Belum ada catatan',
+            isi: 'Belum ada catatan. Tekan "Apa yang terjadi?" di bawah untuk mencatat.',
+          ),
+        ),
     ];
 
     return RefreshIndicator(
@@ -110,9 +117,18 @@ class _ListFinancePageState extends State<ListFinancePage> {
           }
           final b = baris[i - atas.length];
           if (b is String) {
+            final n = tampil.where((c) => c.date.startsWith(b)).length;
             return Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 8),
-              child: Semantics(header: true, child: Text(judulBulan(b), style: t.titleMedium)),
+              padding: const EdgeInsets.only(top: Jarak.s12, bottom: Jarak.s8),
+              child: Wrap(
+                spacing: Jarak.s8,
+                runSpacing: Jarak.s4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Semantics(header: true, child: Text(judulBulan(b), style: t.titleMedium)),
+                  ChipPil('$n catatan'),
+                ],
+              ),
             );
           }
           final c = b as TransactionModel;

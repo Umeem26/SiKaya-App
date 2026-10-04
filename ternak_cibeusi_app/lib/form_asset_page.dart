@@ -149,7 +149,7 @@ class _FormAssetPageState extends State<FormAssetPage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: TombolUtama(
             label: _menyimpan ? 'Menyimpan...' : 'Simpan',
-            ikon: Icons.save,
+            ikon: Icons.save_rounded,
             onPressed: _menyimpan ? null : _simpan,
           ),
         ),
@@ -259,18 +259,18 @@ class _FormAssetPageState extends State<FormAssetPage> {
           Wrap(spacing: 8, runSpacing: 8, children: [
             TombolKedua(
                 label: 'Ambil foto',
-                ikon: Icons.photo_camera,
+                ikon: Icons.photo_camera_rounded,
                 lebarPenuh: false,
                 onPressed: () => _ambilFoto(ImageSource.camera)),
             TombolKedua(
                 label: 'Pilih dari galeri',
-                ikon: Icons.photo_library,
+                ikon: Icons.photo_library_rounded,
                 lebarPenuh: false,
                 onPressed: () => _ambilFoto(ImageSource.gallery)),
             if (_foto.isNotEmpty)
               TombolKedua(
                   label: 'Hapus foto',
-                  ikon: Icons.hide_image,
+                  ikon: Icons.hide_image_rounded,
                   lebarPenuh: false,
                   onPressed: () => setState(() => _foto = '')),
           ]),

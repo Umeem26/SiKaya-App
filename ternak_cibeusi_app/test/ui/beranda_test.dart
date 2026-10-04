@@ -57,9 +57,10 @@ void main() {
     if (diAtasTombol && tombolCatat().evaluate().isNotEmpty) {
       batasBawah = tester.getRect(tombolCatat()).top;
     }
-    expect(r.left, greaterThanOrEqualTo(0), reason: '$f');
+    // Toleransi 0,5dp untuk galat pembulatan (sama dengan dalamLebar di ui_helpers.dart).
+    expect(r.left, greaterThanOrEqualTo(-0.5), reason: '$f');
     expect(r.right, lessThanOrEqualTo(lebar), reason: '$f');
-    expect(r.top, greaterThanOrEqualTo(0), reason: '$f');
+    expect(r.top, greaterThanOrEqualTo(-0.5), reason: '$f');
     expect(r.bottom, lessThanOrEqualTo(batasBawah + 0.5), reason: '$f');
   }
 

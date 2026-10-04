@@ -90,14 +90,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
               textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(
                 hintText: 'Contoh: Ternak Cibeusi Makmur',
-                prefixIcon: Icon(Icons.edit, color: Warna.aksenTeks),
+                prefixIcon: Icon(Icons.edit_rounded, color: Warna.aksenTeks),
                 errorMaxLines: 10,
               ),
               validator: (val) => val == null || val.trim().isEmpty ? 'Nama tidak boleh kosong ya' : null,
             ),
           ),
           const SizedBox(height: 32),
-          TombolUtama(label: 'Lanjut', ikon: Icons.arrow_forward, onPressed: _lanjut),
+          TombolUtama(label: 'Lanjut', ikon: Icons.arrow_forward_rounded, onPressed: _lanjut),
         ],
       ),
     );
@@ -123,7 +123,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       children: [
         Text('Langkah 2 dari 2', style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
         const SizedBox(height: 16),
-        _gambar(Icons.cloud_upload_outlined),
+        _gambar(Icons.cloud_upload_rounded),
         const SizedBox(height: 32),
         Text('Simpan cadangan secara berkala', style: t.headlineSmall!.copyWith(color: Warna.primer)),
         const SizedBox(height: 12),
@@ -142,9 +142,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
           nada: Nada.netral,
         ),
         const SizedBox(height: 32),
-        TombolUtama(label: 'Mengerti, mulai mencatat', ikon: Icons.check, onPressed: _mulai),
+        TombolUtama(label: 'Mengerti, mulai mencatat', ikon: Icons.check_rounded, onPressed: _mulai),
         const SizedBox(height: 12),
-        TombolKedua(label: 'Kembali', ikon: Icons.arrow_back, onPressed: () => setState(() => _langkah = 0)),
+        TombolKedua(label: 'Kembali', ikon: Icons.arrow_back_rounded, onPressed: () => setState(() => _langkah = 0)),
       ],
     );
   }

@@ -224,7 +224,7 @@ class _LainnyaPageState extends State<LainnyaPage> {
           '${peringatanPulihkan(isi, sekarang)}\n\n'
           'Sebelum diganti, data saat ini disalin otomatis sebagai cadangan di folder database aplikasi.',
       aksi: 'Pulihkan',
-      ikonAksi: Icons.restore,
+      ikonAksi: Icons.restore_rounded,
       bahaya: true,
     );
     if (!ya) return;
@@ -262,12 +262,12 @@ class _LainnyaPageState extends State<LainnyaPage> {
           // Tombol di luar isi yang digulir: selalu terlihat, bertumpuk bila tidak muat.
           actionsOverflowDirection: VerticalDirection.up,
           actions: [
-            TombolKedua(label: 'Batal', ikon: Icons.close, lebarPenuh: false, onPressed: () => Navigator.pop(ctx)),
+            TombolKedua(label: 'Batal', ikon: Icons.close_rounded, lebarPenuh: false, onPressed: () => Navigator.pop(ctx)),
             TombolKedua(
-                label: 'Lewati', ikon: Icons.skip_next, lebarPenuh: false, onPressed: () => Navigator.pop(ctx, false)),
+                label: 'Lewati', ikon: Icons.skip_next_rounded, lebarPenuh: false, onPressed: () => Navigator.pop(ctx, false)),
             TombolUtama(
                 label: 'Ekspor cadangan dulu',
-                ikon: Icons.save_alt,
+                ikon: Icons.save_alt_rounded,
                 lebarPenuh: false,
                 onPressed: () => Navigator.pop(ctx, true)),
           ],
@@ -326,7 +326,7 @@ class _LainnyaPageState extends State<LainnyaPage> {
           '4. Tidak ada catatan yang dihapus. Total aset tetap ${rupiah(p.report.totalAset)}.\n\n'
           'Kunci ini tidak bisa dibuka dari aplikasi.',
       aksi: 'Tutup buku',
-      ikonAksi: Icons.lock,
+      ikonAksi: Icons.lock_rounded,
       bahaya: true,
     );
     if (!ya) return;
@@ -381,7 +381,7 @@ class _LainnyaPageState extends State<LainnyaPage> {
           'Sebelum dihapus, data disalin sebagai cadangan di folder database aplikasi. '
           'Salinan ini ikut terhapus bila aplikasi di-uninstall, jadi ekspor cadangan dulu bila masih perlu.',
       aksi: 'Hapus semuanya',
-      ikonAksi: Icons.delete_forever,
+      ikonAksi: Icons.delete_forever_rounded,
       bahaya: true,
     );
     if (!ya || !mounted) return;
@@ -413,15 +413,39 @@ class _LainnyaPageState extends State<LainnyaPage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: TombolUtama(
             label: _sibuk ? 'Mohon tunggu...' : 'Ekspor cadangan',
-            ikon: Icons.save_alt,
+            ikon: Icons.save_alt_rounded,
             onPressed: _sibuk ? null : _eksporCadangan,
           ),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s16, Jarak.s16, Jarak.s24),
         children: [
-          Semantics(header: true, child: Text('Cadangan & Pengaturan', style: t.titleMedium)),
+          // Profil usaha (gaya Pengaturan lama): logo, nama, peran.
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(Jarak.s16),
+              child: Row(children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  padding: const EdgeInsets.all(Jarak.s8),
+                  decoration: const BoxDecoration(color: Warna.primerMuda, shape: BoxShape.circle),
+                  child: ClipOval(child: Image.asset('assets/icon_ayam.png', fit: BoxFit.contain)),
+                ),
+                const SizedBox(width: Jarak.s16),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(_nama, style: t.titleMedium),
+                    const SizedBox(height: Jarak.s4),
+                    const ChipPil('Pemilik peternakan', nada: Nada.peringatan, ikon: Icons.verified_rounded),
+                  ]),
+                ),
+              ]),
+            ),
+          ),
+          const SizedBox(height: Jarak.s24),
+          const JudulSeksi('Cadangan & Pengaturan'),
           jarak,
           if (lama)
             BannerPeringatan(
@@ -432,54 +456,82 @@ class _LainnyaPageState extends State<LainnyaPage> {
           if (lama) jarak,
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Jarak.s16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('Cadangan terakhir', style: t.titleSmall),
-                Text(terakhir == null ? 'Belum pernah' : teksCadanganTerakhir(terakhir, _hariIni),
-                    style: t.bodyLarge!.copyWith(color: lama ? Warna.peringatan : Warna.sukses)),
-                const SizedBox(height: 12),
-                TombolKedua(label: 'Pulihkan cadangan', ikon: Icons.restore, onPressed: _sibuk ? null : _pulihkan),
+                Row(children: [
+                  UbinIkon(lama ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
+                      nada: lama ? Nada.peringatan : Nada.sukses),
+                  const SizedBox(width: Jarak.s12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Cadangan terakhir', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                      Text(terakhir == null ? 'Belum pernah' : teksCadanganTerakhir(terakhir, _hariIni),
+                          style: t.bodyLarge!.copyWith(color: lama ? Warna.peringatan : Warna.sukses)),
+                    ]),
+                  ),
+                ]),
+                const SizedBox(height: Jarak.s12),
+                TombolKedua(
+                    label: 'Pulihkan cadangan', ikon: Icons.restore_rounded, onPressed: _sibuk ? null : _pulihkan),
               ]),
             ),
           ),
           jarak,
-          _Menu(
-            ikon: Icons.lock_clock_outlined,
-            judul: 'Tutup buku',
-            keterangan: 'Kunci catatan sampai tanggal tertentu dan pindahkan untung ke saldo laba. '
-                '${_ditutupSampai == null ? 'Belum pernah ditutup.' : 'Sudah ditutup sampai ${_tgl(_ditutupSampai!)}.'}',
-            onTap: _sibuk ? null : _tutupBuku,
+          _Grup(children: [
+            _Menu(
+              ikon: Icons.lock_clock_rounded,
+              judul: 'Tutup buku',
+              keterangan: 'Kunci catatan sampai tanggal tertentu dan pindahkan untung ke saldo laba. '
+                  '${_ditutupSampai == null ? 'Belum pernah ditutup.' : 'Sudah ditutup sampai ${_tgl(_ditutupSampai!)}.'}',
+              onTap: _sibuk ? null : _tutupBuku,
+            ),
+            _Menu(
+              ikon: Icons.table_view_rounded,
+              nada: Nada.sukses,
+              judul: 'Ekspor CSV (untuk Excel)',
+              keterangan: 'Daftar catatan untuk dibuka di Excel. Bukan cadangan; tidak bisa dipulihkan.',
+              onTap: _sibuk ? null : _eksporCsv,
+            ),
+            _Menu(
+              ikon: Icons.storefront_rounded,
+              nada: Nada.peringatan,
+              judul: 'Nama usaha',
+              keterangan: '$_nama\nKetuk untuk mengubah.',
+              onTap: _ubahNama,
+            ),
+          ]),
+          const SizedBox(height: Jarak.s24),
+          const JudulSeksi('Inventaris'),
+          jarak,
+          _Grup(children: [
+            _Menu(
+              ikon: Icons.inventory_2_rounded,
+              judul: 'Daftar inventaris',
+              keterangan: 'Ternak, barang, dan peralatan yang dimiliki (tidak masuk laporan keuangan).',
+              onTap: () =>
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ListAssetPage(sumber: widget.inventaris))),
+            ),
+          ]),
+          const SizedBox(height: Jarak.s24),
+          const JudulSeksi('Zona bahaya', warna: Warna.error),
+          jarak,
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(Jarak.s16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const UbinIkon(Icons.delete_forever_rounded, nada: Nada.error),
+                  const SizedBox(width: Jarak.s12),
+                  Expanded(child: Text('Menghapus semua catatan dan pengaturan di HP ini.', style: t.bodyLarge)),
+                ]),
+                jarak,
+                TombolBahaya(
+                    label: 'Hapus semua data',
+                    ikon: Icons.delete_forever_rounded,
+                    onPressed: _sibuk ? null : _hapusSemua),
+              ]),
+            ),
           ),
-          jarak,
-          _Menu(
-            ikon: Icons.table_view_outlined,
-            judul: 'Ekspor CSV (untuk Excel)',
-            keterangan: 'Daftar catatan untuk dibuka di Excel. Bukan cadangan; tidak bisa dipulihkan.',
-            onTap: _sibuk ? null : _eksporCsv,
-          ),
-          jarak,
-          _Menu(
-            ikon: Icons.storefront_outlined,
-            judul: 'Nama usaha',
-            keterangan: '$_nama\nKetuk untuk mengubah.',
-            onTap: _ubahNama,
-          ),
-          const SizedBox(height: 24),
-          Semantics(header: true, child: Text('Inventaris', style: t.titleMedium)),
-          jarak,
-          _Menu(
-            ikon: Icons.inventory_2_outlined,
-            judul: 'Daftar inventaris',
-            keterangan: 'Ternak, barang, dan peralatan yang dimiliki (tidak masuk laporan keuangan).',
-            onTap: () =>
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ListAssetPage(sumber: widget.inventaris))),
-          ),
-          const SizedBox(height: 24),
-          Semantics(header: true, child: Text('Zona bahaya', style: t.titleMedium!.copyWith(color: Warna.error))),
-          jarak,
-          Text('Menghapus semua catatan dan pengaturan di HP ini.', style: t.bodyLarge),
-          jarak,
-          TombolBahaya(label: 'Hapus semua data', ikon: Icons.delete_forever, onPressed: _sibuk ? null : _hapusSemua),
         ],
       ),
     );
@@ -515,47 +567,65 @@ class _DialogNamaState extends State<_DialogNama> {
         ),
         actionsOverflowDirection: VerticalDirection.up,
         actions: [
-          TombolKedua(label: 'Batal', ikon: Icons.close, lebarPenuh: false, onPressed: () => Navigator.pop(context)),
+          TombolKedua(label: 'Batal', ikon: Icons.close_rounded, lebarPenuh: false, onPressed: () => Navigator.pop(context)),
           TombolUtama(
               label: 'Simpan',
-              ikon: Icons.save,
+              ikon: Icons.save_rounded,
               lebarPenuh: false,
               onPressed: () => Navigator.pop(context, _c.text.trim())),
         ],
       );
 }
 
+/// Beberapa menu dalam satu kartu, dipisah garis tipis.
+class _Grup extends StatelessWidget {
+  const _Grup({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const Divider(indent: 72),
+            children[i],
+          ],
+        ]),
+      );
+}
+
 class _Menu extends StatelessWidget {
-  const _Menu({required this.ikon, required this.judul, required this.keterangan, this.onTap});
+  const _Menu({required this.ikon, required this.judul, required this.keterangan, this.onTap, this.nada = Nada.netral});
   final IconData ikon;
   final String judul;
   final String keterangan;
   final VoidCallback? onTap;
+  final Nada nada;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 72),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Icon(ikon, size: 32, color: Warna.primer),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(judul, style: t.titleSmall),
-                  const SizedBox(height: 4),
-                  Text(keterangan, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
-                ]),
-              ),
-              const Icon(Icons.chevron_right, color: Warna.teksSekunder),
-            ]),
-          ),
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 72),
+        child: Padding(
+          padding: const EdgeInsets.all(Jarak.s16),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            UbinIkon(ikon, nada: nada),
+            const SizedBox(width: Jarak.s12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(judul, style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: Jarak.s4),
+                Text(keterangan, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+              ]),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: Jarak.s8),
+              child: Icon(Icons.chevron_right_rounded, color: Warna.teksSekunder),
+            ),
+          ]),
         ),
       ),
     );

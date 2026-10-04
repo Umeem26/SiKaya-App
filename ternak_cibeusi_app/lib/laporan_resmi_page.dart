@@ -56,7 +56,7 @@ class _LaporanResmiPageState extends State<LaporanResmiPage> {
           TombolPilihan(
             label: judulTabResmi[i],
             terpilih: i == _tab,
-            ikon: Icons.description_outlined,
+            ikon: Icons.description_rounded,
             onPressed: () => setState(() => _tab = i),
           ),
       ],
@@ -74,7 +74,7 @@ class _LaporanResmiPageState extends State<LaporanResmiPage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: TombolUtama(
             label: _membuat ? 'Membuat PDF...' : 'Ekspor PDF',
-            ikon: Icons.picture_as_pdf_outlined,
+            ikon: Icons.picture_as_pdf_rounded,
             onPressed: _membuat ? null : _ekspor,
           ),
         ),

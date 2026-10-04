@@ -44,7 +44,7 @@ class _ListAssetPageState extends State<ListAssetPage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: TombolUtama(
             label: 'Tambah barang',
-            ikon: Icons.add,
+            ikon: Icons.add_rounded,
             onPressed: () => _buka(FormAssetPage(sumber: widget.sumber, kelompokAwal: _kelompok)),
           ),
         ),
@@ -59,7 +59,7 @@ class _ListAssetPageState extends State<ListAssetPage> {
                 isi: '${snap.error}',
                 nada: Nada.error,
                 aksi: 'Coba lagi',
-                ikonAksi: Icons.refresh,
+                ikonAksi: Icons.refresh_rounded,
                 onAksi: _muatUlang,
               ),
             ]);
@@ -128,14 +128,14 @@ class ItemInventaris extends StatelessWidget {
                   child: Image.file(File(a.imagePath), width: 56, height: 56, fit: BoxFit.cover),
                 )
               else
-                const Icon(Icons.inventory_2_outlined, color: Warna.primer, size: 32),
+                const Icon(Icons.inventory_2_rounded, color: Warna.primer, size: 32),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(a.nama, style: t.titleSmall),
                   Text('${a.jumlah} ${a.satuan ?? ''}'.trim(), style: t.bodyLarge),
                   Row(children: [
-                    Icon(baik ? Icons.check_circle_outline : Icons.build_outlined,
+                    Icon(baik ? Icons.check_circle_rounded : Icons.build_rounded,
                         color: baik ? Warna.sukses : Warna.peringatan, size: 20),
                     const SizedBox(width: 6),
                     Expanded(
@@ -145,7 +145,7 @@ class ItemInventaris extends StatelessWidget {
                   ]),
                 ]),
               ),
-              if (onTap != null) const Icon(Icons.chevron_right, color: Warna.teksSekunder),
+              if (onTap != null) const Icon(Icons.chevron_right_rounded, color: Warna.teksSekunder),
             ]),
           ),
         ),

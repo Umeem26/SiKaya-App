@@ -41,7 +41,7 @@ class _DetailAssetPageState extends State<DetailAssetPage> {
       isi: '${_a.nama} (${_a.jumlah} ${_a.satuan ?? ''}) dihapus dari daftar inventaris. '
           'Laporan keuangan tidak berubah.',
       aksi: 'Hapus',
-      ikonAksi: Icons.delete,
+      ikonAksi: Icons.delete_rounded,
       bahaya: true,
     );
     if (!ya || !mounted) return;
@@ -90,9 +90,9 @@ class _DetailAssetPageState extends State<DetailAssetPage> {
           const SizedBox(height: 8),
           Text('Inventaris tidak masuk laporan keuangan.', style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
           const SizedBox(height: 24),
-          TombolKedua(label: 'Ubah', ikon: Icons.edit, onPressed: _ubah),
+          TombolKedua(label: 'Ubah', ikon: Icons.edit_rounded, onPressed: _ubah),
           const SizedBox(height: 12),
-          TombolBahaya(label: 'Hapus', ikon: Icons.delete, onPressed: _hapus),
+          TombolBahaya(label: 'Hapus', ikon: Icons.delete_rounded, onPressed: _hapus),
         ],
       ),
     );

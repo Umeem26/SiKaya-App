@@ -12,10 +12,7 @@ void main() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(gayaSistem);
   runApp(const MyApp());
 }
 
@@ -33,6 +30,8 @@ class MyApp extends StatelessWidget {
       title: 'SiKaya',
       theme: temaSikaya(),
       themeMode: ThemeMode.light,
+      // Bawaan semua halaman; splash menimpanya dengan bilah navigasi biru.
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(value: gayaSistem, child: child!),
       home: home,
     );
   }
