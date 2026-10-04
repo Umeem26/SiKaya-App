@@ -198,4 +198,23 @@ void main() {
     expect(await nilaiBaris(tester, 'LABA (RUGI) BERSIH'), 1450000);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('laporan resmi: kop nama usaha + periode, band judul, total bergaris ganda', (tester) async {
+    final repo = await repoLaporan();
+    await pasangHalaman(tester, ReportPage(repo: repo, hariIni: hariIni), skala: 1.0);
+    await tester.tap(find.text('Lihat laporan resmi'));
+    await tester.pumpAndSettle();
+    // Kop: nama usaha, judul, periode (rata tengah) di dalam kertas laporan.
+    for (final s in ['Peternakan Ayam Cibeusi Makmur Sejahtera', 'Laporan Posisi Keuangan', 'Per 15 Februari 2026']) {
+      expect(tester.widget<Text>(find.text(s)).textAlign, TextAlign.center, reason: s);
+    }
+    expect(find.descendant(of: find.byType(BandJudul), matching: find.text('ASET')), findsOneWidget);
+    expect(find.descendant(of: find.byType(BandJudul), matching: find.text('LIABILITAS')), findsOneWidget);
+    await gulirKe(tester, find.byType(BarisTotal));
+    final total = find.byWidgetPredicate((w) => w is BarisTotal && w.label == 'JUMLAH ASET');
+    expect(total, findsOneWidget);
+    // Garis atas + dua garis bawah (garis ganda).
+    expect(find.descendant(of: total, matching: find.byType(Divider)), findsNWidgets(3));
+    expect(tester.takeException(), isNull);
+  });
 }

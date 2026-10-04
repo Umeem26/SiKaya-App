@@ -84,31 +84,46 @@ class _LaporanResmiPageState extends State<LaporanResmiPage> {
         key: ValueKey(_tab),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          Text('Pilih laporan', style: t.titleSmall),
-          const SizedBox(height: 8),
+          Text('Pilih laporan', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: Jarak.s8),
           pilihan,
-          const SizedBox(height: 20),
+          const SizedBox(height: Jarak.s16),
           ...isi,
         ],
       ),
     );
   }
 
+  /// Kop laporan (gaya laporan lama): kotak bergaris, rata tengah.
   Widget _kepala(String judul, String periode) {
     final t = Theme.of(context).textTheme;
     final d = widget.data;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(d.namaUsaha, style: t.titleMedium),
-        Text(judul, style: t.titleLarge),
-        Text(periode, style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: Jarak.s12, vertical: Jarak.s12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Warna.teks, width: 1.5),
+            borderRadius: BorderRadius.circular(Sudut.kecil),
+          ),
+          child: Column(children: [
+            Text(d.namaUsaha, textAlign: TextAlign.center, style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: Jarak.s4),
+            Semantics(
+              header: true,
+              child: Text(judul, textAlign: TextAlign.center, style: t.titleLarge!.copyWith(color: Warna.primer)),
+            ),
+            const SizedBox(height: Jarak.s4),
+            Text(periode, textAlign: TextAlign.center, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+          ]),
+        ),
         if (d.r.peringatanTinjau case final w?) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: Jarak.s12),
           BannerPeringatan(judul: 'Perlu ditinjau', isi: w.pesan),
         ],
         if (!d.r.balanced) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: Jarak.s12),
           BannerPeringatan(
             judul: 'Tidak seimbang',
             isi:
@@ -117,85 +132,97 @@ class _LaporanResmiPageState extends State<LaporanResmiPage> {
             nada: Nada.error,
           ),
         ],
-        const SizedBox(height: 12),
+        const SizedBox(height: Jarak.s8),
       ],
     );
   }
 
-  List<Widget> _laporan(LaporanResmi l) {
-    final t = Theme.of(context).textTheme;
-    return [
-      _kepala(l.judul, l.keteranganPeriode),
-      Card(
+  /// Kertas laporan: putih, bersudut, berbayang tipis.
+  Widget _kertas(List<Widget> isi) => Card(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final b in l.baris)
-                switch (b.jenis) {
-                  JenisBaris.judul => Padding(
-                    padding: const EdgeInsets.only(top: 12, bottom: 4),
-                    child: Semantics(header: true, child: Text(b.label, style: t.titleSmall)),
-                  ),
-                  JenisBaris.biasa => BarisLaporan(label: b.label, nilai: angkaResmi(b.nilai!), menjorok: b.menjorok),
-                  JenisBaris.subtotal => Container(
-                    decoration: const BoxDecoration(
-                      border: Border(top: BorderSide(color: Warna.teksSekunder)),
-                    ),
-                    child: BarisLaporan(label: b.label, nilai: angkaResmi(b.nilai!), tebal: true, menjorok: b.menjorok),
-                  ),
-                  JenisBaris.total => Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: Warna.teks, width: 2),
-                        bottom: BorderSide(color: Warna.teks, width: 2),
-                      ),
-                    ),
-                    child: BarisLaporan(label: b.label, nilai: angkaResmi(b.nilai!), tebal: true),
-                  ),
-                },
-            ],
-          ),
+          padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s16, Jarak.s16, Jarak.s16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: isi),
         ),
-      ),
-    ];
-  }
+      );
+
+  List<Widget> _laporan(LaporanResmi l) => [
+        _kertas([
+          _kepala(l.judul, l.keteranganPeriode),
+          for (final b in l.baris)
+            switch (b.jenis) {
+              JenisBaris.judul => BandJudul(b.label),
+              JenisBaris.biasa => BarisLaporan(label: b.label, nilai: angkaResmi(b.nilai!), menjorok: b.menjorok),
+              JenisBaris.subtotal => Container(
+                  margin: const EdgeInsets.only(top: Jarak.s4),
+                  decoration: const BoxDecoration(border: Border(top: BorderSide(color: Warna.teksSekunder))),
+                  child: BarisLaporan(label: b.label, nilai: angkaResmi(b.nilai!), tebal: true, menjorok: b.menjorok),
+                ),
+              JenisBaris.total => BarisTotal(label: b.label, nilai: angkaResmi(b.nilai!)),
+            },
+        ]),
+      ];
 
   List<Widget> _calk() {
     final t = Theme.of(context).textTheme;
     final d = widget.data;
     return [
-      _kepala('Catatan atas Laporan Keuangan', 'Untuk periode ${tanggalResmi(d.dari)} s.d. ${tanggalResmi(d.sampai)}'),
-      for (final CalkSection s in d.calk)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Semantics(header: true, child: Text(s.judul, style: t.titleSmall)),
-                  for (final p in s.paragraf)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(p, style: t.bodyLarge),
-                    ),
-                  for (final r in s.rincian) ...[
-                    BarisLaporan(label: r.label, nilai: angkaResmi(r.nilai)),
-                    if (r.keterangan != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(r.keterangan!, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
-                      ),
-                  ],
-                ],
-              ),
+      _kertas([
+        _kepala('Catatan atas Laporan Keuangan', 'Untuk periode ${tanggalResmi(d.dari)} s.d. ${tanggalResmi(d.sampai)}'),
+        for (final CalkSection s in d.calk) ...[
+          BandJudul(s.judul),
+          for (final p in s.paragraf)
+            Padding(
+              padding: const EdgeInsets.only(top: Jarak.s8, left: Jarak.s8),
+              child: Text(p, style: t.bodyLarge),
             ),
-          ),
-        ),
+          for (final r in s.rincian) ...[
+            BarisLaporan(label: r.label, nilai: angkaResmi(r.nilai), menjorok: 1),
+            if (r.keterangan != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Jarak.s4, left: Jarak.s24),
+                child: Text(r.keterangan!, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+              ),
+          ],
+          const SizedBox(height: Jarak.s8),
+        ],
+      ]),
     ];
   }
+}
+
+/// Band judul seksi laporan (ASET, LIABILITAS, ...): latar biru muda, tulisan biru tebal.
+class BandJudul extends StatelessWidget {
+  const BandJudul(this.label, {super.key});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(top: Jarak.s12, bottom: Jarak.s4),
+        padding: const EdgeInsets.symmetric(horizontal: Jarak.s12, vertical: Jarak.s8),
+        decoration: BoxDecoration(color: Warna.primerMuda, borderRadius: BorderRadius.circular(8)),
+        child: Semantics(
+          header: true,
+          child: Text(label,
+              style: Theme.of(context).textTheme.titleSmall!.copyWith(color: Warna.primer, fontWeight: FontWeight.w800)),
+        ),
+      );
+}
+
+/// Baris total: garis tunggal di atas, garis ganda di bawah (konvensi akuntansi).
+class BarisTotal extends StatelessWidget {
+  const BarisTotal({super.key, required this.label, required this.nilai});
+  final String label;
+  final String nilai;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: Jarak.s8, bottom: Jarak.s4),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const Divider(color: Warna.teks, thickness: 1.5, height: 1.5),
+          BarisLaporan(label: label, nilai: nilai, tebal: true),
+          const Divider(color: Warna.teks, thickness: 1.5, height: 1.5),
+          const SizedBox(height: 2.5),
+          const Divider(color: Warna.teks, thickness: 1.5, height: 1.5),
+        ]),
+      );
 }

@@ -112,13 +112,13 @@ class _ReportPageState extends State<ReportPage> {
   Widget _ringkasan(DataLaporan d) {
     final t = Theme.of(context).textTheme;
     final untung = d.untungRugi >= 0;
-    const jarak = SizedBox(height: 12);
+    const jarak = SizedBox(height: Jarak.s12);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s16, Jarak.s16, Jarak.s24),
       children: [
-        Text('Pilih waktu', style: t.titleSmall),
-        const SizedBox(height: 8),
-        Wrap(spacing: 8, runSpacing: 8, children: [
+        Text('Pilih waktu', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: Jarak.s8),
+        Wrap(spacing: Jarak.s8, runSpacing: Jarak.s8, children: [
           for (final p in PilihanPeriode.values)
             TombolPilihan(
               label: labelPeriode[p]!,
@@ -127,9 +127,24 @@ class _ReportPageState extends State<ReportPage> {
               onPressed: () => _pilihPeriode(p),
             ),
         ]),
-        const SizedBox(height: 12),
-        Text('${tanggalResmi(d.dari)} s.d. ${tanggalResmi(d.sampai)}',
-            style: t.titleMedium!.copyWith(color: Warna.primer)),
+        const SizedBox(height: Jarak.s16),
+        // Kop ringkasan: nama usaha dan rentang waktu yang sedang dilihat.
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(Jarak.s16),
+            child: Row(children: [
+              const UbinIkon(Icons.event_note_rounded),
+              const SizedBox(width: Jarak.s12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(d.namaUsaha, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+                  Text('${tanggalResmi(d.dari)} s.d. ${tanggalResmi(d.sampai)}',
+                      style: t.titleSmall!.copyWith(color: Warna.primer, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+            ]),
+          ),
+        ),
         if (d.r.peringatanTinjau case final w?) ...[
           jarak,
           BannerPeringatan(
@@ -147,24 +162,9 @@ class _ReportPageState extends State<ReportPage> {
             nada: Nada.error,
           ),
         ],
-        jarak,
+        const SizedBox(height: Jarak.s16),
         KartuAngka(
-          judul: 'Uang masuk',
-          nilai: bertanda(d.uangMasuk),
-          ikon: Icons.south_west_rounded,
-          nada: Nada.sukses,
-          keterangan: 'Uang tunai yang diterima dalam waktu ini: penjualan tunai, pelunasan piutang, '
-              'pinjaman, dan modal.',
-        ),
-        jarak,
-        KartuAngka(
-          judul: 'Uang keluar',
-          nilai: bertanda(-d.uangKeluar),
-          ikon: Icons.north_east_rounded,
-          keterangan: 'Uang tunai yang dibayarkan dalam waktu ini: belanja, biaya, cicilan, dan ambilan pribadi.',
-        ),
-        jarak,
-        KartuAngka(
+          utama: true,
           judul: untung ? 'Untung' : 'Rugi',
           nilai: rupiah(d.untungRugi.abs()),
           ikon: untung ? Icons.trending_up_rounded : Icons.trending_down_rounded,
@@ -173,41 +173,58 @@ class _ReportPageState extends State<ReportPage> {
               'yang terpakai dan penyusutan. Uang masuk belum tentu untung.',
         ),
         jarak,
-        KartuAngka(
-          judul: 'Uang kas di akhir waktu ini',
-          nilai: rupiah(d.kasAkhir),
-          ikon: Icons.account_balance_wallet_rounded,
-          keterangan: 'Sisa uang tunai usaha menurut catatan pada ${tanggalResmi(d.sampai)}.',
-        ),
-        jarak,
-        KartuAngka(
-          judul: 'Nilai stok',
-          nilai: rupiah(d.nilaiStok),
-          ikon: Icons.inventory_2_rounded,
-          keterangan: 'Pakan, obat, dan ternak yang masih ada, dihitung dari harga beli rata-rata.',
-        ),
-        jarak,
-        KartuAngka(
-          judul: 'Nilai kandang & peralatan',
-          nilai: rupiah(d.nilaiAsetTetap),
-          ikon: Icons.warehouse_rounded,
-          keterangan: 'Harga beli dikurangi penyusutan, yaitu bagian yang sudah terpakai selama ini.',
-        ),
-        jarak,
-        KartuAngka(
-          judul: 'Utang',
-          nilai: rupiah(d.utang),
-          ikon: Icons.call_made_rounded,
-          nada: d.utang > 0 ? Nada.peringatan : Nada.netral,
-          keterangan: 'Yang masih harus Anda bayar ke penjual atau pemberi pinjaman.',
-        ),
-        jarak,
-        KartuAngka(
-          judul: 'Piutang',
-          nilai: rupiah(d.piutang),
-          ikon: Icons.call_received_rounded,
-          keterangan: 'Yang masih harus dibayar pembeli kepada Anda.',
-        ),
+        KisiKartu(children: [
+          KartuAngka(
+            judul: 'Uang masuk',
+            nilai: bertanda(d.uangMasuk),
+            ikon: Icons.south_west_rounded,
+            nada: Nada.sukses,
+            keterangan: 'Uang tunai diterima: penjualan tunai, pelunasan piutang, pinjaman, modal.',
+          ),
+          KartuAngka(
+            judul: 'Uang keluar',
+            nilai: bertanda(-d.uangKeluar),
+            ikon: Icons.north_east_rounded,
+            nada: Nada.peringatan,
+            keterangan: 'Uang tunai dibayar: belanja, biaya, cicilan, ambilan pribadi.',
+          ),
+        ]),
+        const SizedBox(height: Jarak.s24),
+        JudulSeksi('Posisi pada ${tanggalResmi(d.sampai)}'),
+        const SizedBox(height: Jarak.s8),
+        KisiKartu(children: [
+          KartuAngka(
+            judul: 'Uang kas di akhir waktu ini',
+            nilai: rupiah(d.kasAkhir),
+            ikon: Icons.account_balance_wallet_rounded,
+            keterangan: 'Sisa uang tunai usaha menurut catatan.',
+          ),
+          KartuAngka(
+            judul: 'Nilai stok',
+            nilai: rupiah(d.nilaiStok),
+            ikon: Icons.inventory_2_rounded,
+            keterangan: 'Pakan, obat, dan ternak yang masih ada, dari harga beli rata-rata.',
+          ),
+          KartuAngka(
+            judul: 'Nilai kandang & peralatan',
+            nilai: rupiah(d.nilaiAsetTetap),
+            ikon: Icons.warehouse_rounded,
+            keterangan: 'Harga beli dikurangi penyusutan (bagian yang sudah terpakai).',
+          ),
+          KartuAngka(
+            judul: 'Utang',
+            nilai: rupiah(d.utang),
+            ikon: Icons.call_made_rounded,
+            nada: d.utang > 0 ? Nada.peringatan : Nada.netral,
+            keterangan: 'Yang masih harus Anda bayar ke penjual atau pemberi pinjaman.',
+          ),
+          KartuAngka(
+            judul: 'Piutang',
+            nilai: rupiah(d.piutang),
+            ikon: Icons.call_received_rounded,
+            keterangan: 'Yang masih harus dibayar pembeli kepada Anda.',
+          ),
+        ]),
       ],
     );
   }
