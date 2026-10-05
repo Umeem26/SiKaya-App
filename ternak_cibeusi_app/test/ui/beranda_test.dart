@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ternak_cibeusi_app/accounting/models.dart';
 import 'package:ternak_cibeusi_app/beranda_page.dart';
+import 'package:ternak_cibeusi_app/ui/komponen.dart';
 import 'package:ternak_cibeusi_app/form_finance_page.dart';
 import 'package:ternak_cibeusi_app/halaman_utama.dart';
 import 'package:ternak_cibeusi_app/lainnya_page.dart';
 import 'package:ternak_cibeusi_app/list_finance_page.dart';
 import 'package:ternak_cibeusi_app/ui/theme.dart';
+import 'package:ternak_cibeusi_app/ui/tokens.dart';
 
 const lebar = 360.0, tinggi = 740.0;
 
@@ -54,7 +56,10 @@ void main() {
     expect(f, findsOneWidget);
     final r = tester.getRect(f);
     var batasBawah = tester.getRect(find.byType(NavigasiBawah)).top;
-    if (diAtasTombol && tombolCatat().evaluate().isNotEmpty) {
+    // Tombol hanya membatasi bila dipin (tidak ikut tergulir).
+    if (diAtasTombol &&
+        tombolCatat().evaluate().isNotEmpty &&
+        find.ancestor(of: tombolCatat(), matching: find.byType(Scrollable)).evaluate().isEmpty) {
       batasBawah = tester.getRect(tombolCatat()).top;
     }
     // Toleransi 0,5dp untuk galat pembulatan (sama dengan dalamLebar di ui_helpers.dart).
@@ -88,11 +93,21 @@ void main() {
             greaterThanOrEqualTo(48), reason: 'area sentuh ${t.label}');
       }
 
-      // Tombol utama tetap terlihat tanpa digulir: area sentuh >= 56dp, ikon + tulisan.
+      // Tombol utama: area sentuh >= 56dp, ikon + tulisan. Huruf
+      // normal: dipin di bawah; huruf sangat besar: bagian dari isi yang digulir.
+      final ringkas = skala >= skalaBerandaRingkas;
+      expect(find.ancestor(of: tombolCatat(), matching: find.byType(Scrollable)),
+          ringkas ? findsWidgets : findsNothing);
+      if (ringkas) {
+        await tester.ensureVisible(tombolCatat());
+        await tester.pumpAndSettle();
+      }
       terlihat(tester, tombolCatat(), diAtasTombol: false);
       terlihat(tester, find.text('Apa yang terjadi?'), diAtasTombol: false);
       expect(tester.getSize(tombolCatat()).height, greaterThanOrEqualTo(56));
       expect(find.descendant(of: tombolCatat(), matching: find.byType(Icon)), findsOneWidget);
+      tester.state<ScrollableState>(find.byType(Scrollable).first).position.jumpTo(0);
+      await tester.pumpAndSettle();
 
       for (final label in [
         contoh.namaUsaha,
@@ -112,8 +127,12 @@ void main() {
         await gulirSampai(tester, f);
         terlihat(tester, f);
       }
-      // Sesudah digulir sampai bawah, tombol utama masih terlihat.
-      terlihat(tester, tombolCatat(), diAtasTombol: false);
+      // Sesudah digulir sampai bawah: tombol dipin masih terlihat; yang ikut tergulir tidak.
+      if (ringkas) {
+        expect(tombolCatat().hitTestable(), findsNothing);
+      } else {
+        terlihat(tester, tombolCatat(), diAtasTombol: false);
+      }
 
       // Tab Lainnya juga tanpa overflow.
       await tester.tap(find.descendant(of: find.byType(NavigasiBawah), matching: find.text('Lainnya')));
@@ -126,6 +145,36 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('Beranda huruf 2,0x: header ringkas (tanpa logo), angka utama dan tombol di layar pertama',
+      (tester) async {
+    await pasang(tester, skala: 2.0);
+    // Header ringkas: tanpa logo, jarak atas 8dp, nama usaha maks. 2 baris.
+    // (Tinggi layar pertama diperiksa di emulator: huruf uji Ahem jauh lebih lebar dari Roboto.)
+    final header = find.byType(HeaderMerek);
+    expect(find.descendant(of: header, matching: find.byType(Image)), findsNothing);
+    expect(tester.widget<HeaderMerek>(header).atas, Jarak.s8);
+    expect(tester.widget<Text>(find.text(contoh.namaUsaha)).maxLines, 2);
+    // Tombol tepat di bawah kartu utama, sebelum kartu lain (bukan di dasar daftar).
+    final utama = tester.getRect(find.ancestor(of: find.text('Rugi bulan ini'), matching: find.byType(KartuAngka)));
+    final tombol = tester.getRect(tombolCatat());
+    expect(tombol.top, greaterThan(utama.bottom));
+    expect(tombol.top - utama.bottom, lessThanOrEqualTo(Jarak.s16 + 8)); // jarak + area sentuh
+    expect(tester.getRect(find.text('12 catatan perlu dicek')).top, greaterThan(tombol.bottom));
+    await tester.ensureVisible(tombolCatat());
+    await tester.pumpAndSettle();
+    await tester.tap(tombolCatat());
+    // Form memuat DB (tidak selesai di tes) -> jangan pumpAndSettle.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.widgetWithText(AppBar, 'Apa yang terjadi?'), findsOneWidget);
+  });
+
+  testWidgets('Beranda huruf 1,0x: header dengan logo, tombol dipin di bawah', (tester) async {
+    await pasang(tester, skala: 1.0);
+    expect(find.descendant(of: find.byType(HeaderMerek), matching: find.byType(Image)), findsOneWidget);
+    expect(find.ancestor(of: tombolCatat(), matching: find.byType(Scrollable)), findsNothing);
+  });
 
   testWidgets('"Lihat catatan" pindah ke tab Catatan', (tester) async {
     await pasang(tester, skala: 1.0);
@@ -142,6 +191,8 @@ void main() {
       (tester) async {
     await pasang(tester);
     expect(dimuat, 1);
+    await tester.ensureVisible(find.text('Apa yang terjadi?'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Apa yang terjadi?'));
     // Form lama memuat DB (tidak selesai di tes) -> jangan pumpAndSettle.
     await tester.pump();

@@ -36,7 +36,11 @@ Future<void> cekKartu(WidgetTester tester, String judul, String nilai) async {
 /// Isi satu catatan dari tombol "Apa yang terjadi?" (halaman mana pun yang memilikinya).
 Future<void> catat(WidgetTester tester, String jenis,
     {int? nominal, String? pilihan, int? jumlah, bool tutupPesan = false}) async {
-  await tester.tap(find.text('Apa yang terjadi?').last);
+  // Huruf sangat besar: tombol di Beranda ikut tergulir (tidak dipin).
+  final tombol = find.text('Apa yang terjadi?').last;
+  await tester.ensureVisible(tombol);
+  await tester.pumpAndSettle();
+  await tester.tap(tombol);
   await tester.pumpAndSettle();
   await ketuk(tester, find.text(jenis));
   if (pilihan != null) await ketuk(tester, find.text(pilihan));

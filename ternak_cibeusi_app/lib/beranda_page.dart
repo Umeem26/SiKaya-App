@@ -103,6 +103,10 @@ String sapaan(DateTime t) => switch (t.hour) {
       _ => 'Selamat malam',
     };
 
+/// Mulai skala huruf ini Beranda ringkas: header lebih pendek dan tombol
+/// "Apa yang terjadi?" ikut tergulir (tidak dipin) agar layar pertama berisi angka.
+const skalaBerandaRingkas = 1.5;
+
 class BerandaPage extends StatefulWidget {
   const BerandaPage({super.key, this.muat, this.repo, this.hariIni, this.onLihatCatatan, this.onLihatAset});
 
@@ -143,19 +147,27 @@ class _BerandaPageState extends State<BerandaPage> {
 
   Future<void> _catat() => _buka(FormFinancePage(repo: widget.repo, hariIni: widget.hariIni));
 
+  bool get _ringkas => MediaQuery.textScalerOf(context).scale(10) >= 10 * skalaBerandaRingkas;
+
+  Widget get _tombolCatat =>
+      TombolUtama(label: 'Apa yang terjadi?', ikon: Icons.edit_note_rounded, onPressed: _catat);
+
   @override
   Widget build(BuildContext context) {
     // Tanpa app bar: header merek sampai ke balik status bar (ikon status putih).
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: gayaSistem,
       child: Scaffold(
-        // Aksi utama selalu terlihat, tidak ikut tergulir.
-        bottomNavigationBar: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s8, Jarak.s16, Jarak.s8),
-            child: TombolUtama(label: 'Apa yang terjadi?', ikon: Icons.edit_note_rounded, onPressed: _catat),
-          ),
-        ),
+        // Aksi utama selalu terlihat, tidak ikut tergulir; pada huruf sangat besar ikut
+        // tergulir (di bawah kartu utama) agar tidak memakan layar bersama navigasi.
+        bottomNavigationBar: _ringkas
+            ? null
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s8, Jarak.s16, Jarak.s8),
+                  child: _tombolCatat,
+                ),
+              ),
         body: FutureBuilder<RingkasanBeranda>(
           future: _data,
           builder: (context, snap) {
@@ -196,8 +208,10 @@ class _BerandaPageState extends State<BerandaPage> {
 
   Widget _kepala(RingkasanBeranda r, double tumpuk) {
     final t = Theme.of(context).textTheme;
+    final ringkas = _ringkas;
     return HeaderMerek(
-      bawah: tumpuk + Jarak.s16,
+      atas: ringkas ? Jarak.s8 : Jarak.s16,
+      bawah: tumpuk + (ringkas ? Jarak.s12 : Jarak.s16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
@@ -208,21 +222,26 @@ class _BerandaPageState extends State<BerandaPage> {
                     style: t.bodyLarge!.copyWith(color: Warna.primerPudar)),
                 const SizedBox(height: Jarak.s4),
               ],
-              // Nama usaha hanya judul: maks 3 baris agar angka penting tetap muat di layar.
+              // Nama usaha hanya judul: maks 3 baris (2 bila ringkas) agar angka penting tetap muat.
               Text(r.namaUsaha,
-                  style: t.titleLarge!.copyWith(color: Warna.putih), maxLines: 3, overflow: TextOverflow.ellipsis),
+                  style: t.titleLarge!.copyWith(color: Warna.putih),
+                  maxLines: ringkas ? 2 : 3,
+                  overflow: TextOverflow.ellipsis),
             ]),
           ),
-          const SizedBox(width: Jarak.s12),
-          Container(
-            width: 52,
-            height: 52,
-            padding: const EdgeInsets.all(Jarak.s4),
-            decoration: const BoxDecoration(color: Warna.putih, shape: BoxShape.circle),
-            child: ClipOval(child: Image.asset('assets/icon_ayam.png', fit: BoxFit.contain)),
-          ),
+          // Logo hanya hiasan: disembunyikan pada huruf sangat besar agar header pendek.
+          if (!ringkas) ...[
+            const SizedBox(width: Jarak.s12),
+            Container(
+              width: 52,
+              height: 52,
+              padding: const EdgeInsets.all(Jarak.s4),
+              decoration: const BoxDecoration(color: Warna.putih, shape: BoxShape.circle),
+              child: ClipOval(child: Image.asset('assets/icon_ayam.png', fit: BoxFit.contain)),
+            ),
+          ],
         ]),
-        const SizedBox(height: Jarak.s12),
+        SizedBox(height: ringkas ? Jarak.s8 : Jarak.s12),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: Jarak.s12, vertical: Jarak.s4),
           decoration: BoxDecoration(color: const Color(0x29FFFFFF), borderRadius: BorderRadius.circular(999)),
@@ -244,7 +263,7 @@ class _BerandaPageState extends State<BerandaPage> {
   Widget _isi(RingkasanBeranda r) {
     final untung = r.labaBersih >= 0;
     const jarak = SizedBox(height: Jarak.s16);
-    const tumpuk = 48.0; // kartu utama naik ke header sebanyak ini
+    final tumpuk = _ringkas ? 24.0 : 48.0; // kartu utama naik ke header sebanyak ini
     final aset = r.aset;
     return ListView(
       padding: EdgeInsets.zero,
@@ -252,7 +271,7 @@ class _BerandaPageState extends State<BerandaPage> {
         _kepala(r, tumpuk),
         // Isi naik menumpuk ke header (gaya UI lama); ruang kosong di ujung bawah daftar = tumpuk.
         Transform.translate(
-          offset: const Offset(0, -tumpuk),
+          offset: Offset(0, -tumpuk),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Jarak.s16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -265,6 +284,7 @@ class _BerandaPageState extends State<BerandaPage> {
                 keterangan: 'Penjualan dikurangi biaya yang terpakai bulan ini, termasuk pakan '
                     'dan penyusutan. Uang masuk belum tentu untung.',
               ),
+              if (_ringkas) ...[jarak, _tombolCatat],
               if (r.perluDitinjau case final w?) ...[
                 jarak,
                 BannerPeringatan(

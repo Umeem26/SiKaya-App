@@ -329,11 +329,14 @@ class KotakMerek extends StatelessWidget {
 /// Header berwarna merek untuk layar utama tanpa app bar (Beranda): gradien
 /// sampai ke balik status bar, sudut bawah membulat.
 class HeaderMerek extends StatelessWidget {
-  const HeaderMerek({super.key, required this.child, this.bawah = Jarak.s24});
+  const HeaderMerek({super.key, required this.child, this.bawah = Jarak.s24, this.atas = Jarak.s16});
   final Widget child;
 
   /// Ruang di bawah isi (untuk kartu yang menumpuk ke header).
   final double bawah;
+
+  /// Ruang di atas isi (di bawah status bar).
+  final double atas;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -348,7 +351,7 @@ class HeaderMerek extends StatelessWidget {
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(Jarak.s16, Jarak.s16, Jarak.s16, bawah),
+            padding: EdgeInsets.fromLTRB(Jarak.s16, atas, Jarak.s16, bawah),
             child: child,
           ),
         ),
