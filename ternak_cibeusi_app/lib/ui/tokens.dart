@@ -36,6 +36,9 @@ abstract final class Warna {
   /// Garis pemisah tipis (bukan penanda arti; tidak perlu 3:1).
   static const garis = Color(0xFFE1E6EF);
 
+  /// Latar isian terisi (form Catat) di atas kartu putih; teks di atasnya [teks]/[teksSekunder].
+  static const isian = Color(0xFFEDF1F8);
+
   /// Tepi kotak isian: >= 3:1 di atas permukaan (WCAG 1.4.11).
   static const tepiIsian = Color(0xFF7B8494);
 
@@ -104,6 +107,11 @@ const pasanganKontras = <(String, Color, Color)>[
   ('primerPudar di atas primerGelap', Warna.primerPudar, Warna.primerGelap),
   ('sukses di atas suksesMuda (chip Untung)', Warna.sukses, Warna.suksesMuda),
   ('aksenTeks di atas peringatanMuda (chip stok)', Warna.aksenTeks, Warna.peringatanMuda),
+  // Isian terisi form Catat: isi, awalan/satuan, ikon, dan pesan salah di atas latar isian.
+  ('teks di atas isian', Warna.teks, Warna.isian),
+  ('teksSekunder di atas isian', Warna.teksSekunder, Warna.isian),
+  ('primer di atas isian', Warna.primer, Warna.isian),
+  ('error di atas isian', Warna.error, Warna.isian),
 ];
 
 /// Luminans relatif WCAG 2.x.

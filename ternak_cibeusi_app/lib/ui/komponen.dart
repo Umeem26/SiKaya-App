@@ -209,6 +209,54 @@ class JudulSeksi extends StatelessWidget {
   }
 }
 
+/// Satu langkah form dalam kartu: nomor langkah di lingkaran biru, judul langkah,
+/// lalu isian-isiannya berjarak 16dp. Isian di dalamnya memakai [temaIsianTerisi].
+class KartuLangkah extends StatelessWidget {
+  const KartuLangkah({super.key, required this.nomor, required this.judul, required this.children});
+  final int nomor;
+  final String judul;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final ukuran = 28 * skalaIkon(context);
+    return Card(
+      child: Theme(
+        data: temaIsianTerisi(Theme.of(context)),
+        child: Padding(
+          padding: const EdgeInsets.all(Jarak.s16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              ExcludeSemantics(
+                child: Container(
+                  width: ukuran,
+                  height: ukuran,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: Warna.primer, shape: BoxShape.circle),
+                  child: Text('$nomor',
+                      textScaler: TextScaler.noScaling,
+                      style: t.labelLarge!.copyWith(color: Warna.putih, fontSize: 15 * skalaIkon(context))),
+                ),
+              ),
+              const SizedBox(width: Jarak.s12),
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  label: 'Langkah $nomor: $judul',
+                  excludeSemantics: true,
+                  child: Text(judul, style: t.titleMedium),
+                ),
+              ),
+            ]),
+            for (final c in children) ...[const SizedBox(height: Jarak.s16), c],
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 /// Keadaan kosong yang ramah: ilustrasi ikon, judul, kalimat ajakan, aksi opsional.
 class KosongRamah extends StatelessWidget {
   const KosongRamah({
@@ -809,15 +857,20 @@ class _BarisPilihan extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    // Di form berisian terisi: baris belum terpilih juga terisi tanpa garis (tanda bulat
+    // teksSekunder tetap >= 3:1 sebagai penanda kontrol).
+    final terisi = isianTerisi(context);
     return Semantics(
       inMutuallyExclusiveGroup: true,
       checked: terpilih,
       enabled: onTap != null,
       child: Material(
-        color: terpilih ? Warna.primerMuda : Warna.permukaan,
+        color: terpilih ? Warna.primerMuda : (terisi ? Warna.isian : Warna.permukaan),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: terpilih ? Warna.primer : Warna.teksSekunder, width: terpilih ? 2 : 1),
+          borderRadius: BorderRadius.circular(Sudut.kecil),
+          side: terpilih
+              ? const BorderSide(color: Warna.primer, width: 2)
+              : (terisi ? BorderSide.none : const BorderSide(color: Warna.teksSekunder)),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

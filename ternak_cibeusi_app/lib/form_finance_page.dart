@@ -40,6 +40,30 @@ final kelompokCatat = [
   KelompokCatat('Dicatat otomatis', [_s(TxType.penyusutan), _s(TxType.tutupBuku)]),
 ];
 
+/// Langkah form Catat (kartu berurutan). Hanya tampilan: isian, label, dan
+/// validasinya tetap dari tx_form_spec.dart.
+enum LangkahCatat { apa, berapa, kapan, catatan }
+
+LangkahCatat langkahIsian(FieldKey k) => switch (k) {
+      FieldKey.rujukanPiutang ||
+      FieldKey.transaksiAsal ||
+      FieldKey.item ||
+      FieldKey.jenisBeban ||
+      FieldKey.namaAset =>
+        LangkahCatat.apa,
+      FieldKey.qty || FieldKey.nominal || FieldKey.umurBulan => LangkahCatat.berapa,
+      FieldKey.tanggal || FieldKey.sumberBayar || FieldKey.tanggalSiapPakai => LangkahCatat.kapan,
+      FieldKey.keterangan => LangkahCatat.catatan,
+    };
+
+/// Judul kartu langkah; "dibayar bagaimana" hanya bila jenis ini punya pilihan cara bayar.
+String judulLangkah(LangkahCatat l, TxTypeFormSpec spec) => switch (l) {
+      LangkahCatat.apa => 'Apa yang dicatat',
+      LangkahCatat.berapa => 'Berapa',
+      LangkahCatat.kapan => spec.field(FieldKey.sumberBayar) != null ? 'Kapan dan dibayar bagaimana' : 'Kapan',
+      LangkahCatat.catatan => 'Catatan tambahan',
+    };
+
 class FormFinancePage extends StatefulWidget {
   /// null = catat baru (mulai dari layar "Apa yang terjadi?").
   final TransactionModel? transaction;
@@ -140,9 +164,12 @@ class _FormFinancePageState extends State<FormFinancePage> {
     final errors = validateForm(spec, _input);
     setState(() => _errors = errors);
     if (errors.isNotEmpty) {
-      // Gulir ke isian pertama yang salah (urutan error = urutan field).
-      final ctx = _kunci[errors.keys.first]?.currentContext;
-      if (ctx != null) {
+      // Gulir ke isian pertama yang salah (urutan tampil: per langkah).
+      final pertama = [for (final l in LangkahCatat.values) ...spec.fields.where((f) => langkahIsian(f.key) == l)]
+          .firstWhere((f) => errors.containsKey(f.key));
+      await WidgetsBinding.instance.endOfFrame; // banner dan pesan salah sudah tersusun
+      final ctx = _kunci[pertama.key]?.currentContext;
+      if (ctx != null && ctx.mounted) {
         await Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.1);
       }
       return;
@@ -268,46 +295,62 @@ class _FormFinancePageState extends State<FormFinancePage> {
         BannerPeringatan(judul: 'Tidak bisa diubah di sini', isi: spec.otomatis!),
       ]);
     }
+    final langkah = <LangkahCatat, List<FieldSpec>>{
+      for (final l in LangkahCatat.values) l: [for (final f in spec.fields) if (langkahIsian(f.key) == l) f],
+    };
+    final kepala = <Widget>[
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        UbinIkon(ikonJenis(spec.type), nada: _nadaJenis(spec.type), ukuran: 52),
+        const SizedBox(width: Jarak.s12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(spec.label, style: t.titleLarge),
+            if (spec.penjelasan != null) ...[
+              const SizedBox(height: Jarak.s4),
+              Text(spec.penjelasan!, style: t.bodyMedium!.copyWith(color: Warna.teksSekunder)),
+            ],
+          ]),
+        ),
+      ]),
+      if (!_isEdit && widget.jenisAwal == null)
+        TombolKedua(
+          label: 'Ganti pilihan',
+          ikon: Icons.swap_horiz_rounded,
+          onPressed: () => setState(() => _spec = null),
+        ),
+    ];
+    var nomor = 0;
     // Kunci per jenis: form baru selalu mulai dari atas (tidak mewarisi gulir daftar pilihan).
-    return ListView(
+    // Semua kartu dibangun sekaligus (bukan daftar malas) agar isian yang salah bisa digulir ke.
+    return SingleChildScrollView(
       key: ObjectKey(spec),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          UbinIkon(ikonJenis(spec.type), nada: _nadaJenis(spec.type), ukuran: 52),
-          const SizedBox(width: Jarak.s12),
-          Expanded(child: Text(spec.label, style: t.titleLarge)),
-        ]),
-        if (spec.penjelasan != null) ...[
-          const SizedBox(height: Jarak.s8),
-          Text(spec.penjelasan!, style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
-        ],
-        if (!_isEdit && widget.jenisAwal == null) ...[
-          const SizedBox(height: 12),
-          TombolKedua(
-            label: 'Ganti pilihan',
-            ikon: Icons.swap_horiz_rounded,
-            onPressed: () => setState(() => _spec = null),
-          ),
-        ],
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (_errors.isNotEmpty) ...[
-          const SizedBox(height: 16),
           BannerPeringatan(
             judul: '${_errors.length} isian perlu diperbaiki',
             isi: 'Lihat tulisan merah di bawah isian.',
             nada: Nada.error,
           ),
+          const SizedBox(height: Jarak.s16),
         ],
-        for (final f in spec.fields) ...[
-          const SizedBox(height: 20),
-          KeyedSubtree(key: _kunci[f.key], child: _field(spec, f)),
-        ],
-        if (spec.retur && _isEdit) ...[
-          const SizedBox(height: 12),
-          Text('Catatan asal retur tidak bisa diganti; hapus lalu catat retur baru.',
-              style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
-        ],
-      ],
+        for (final l in LangkahCatat.values)
+          // Langkah pertama selalu tampil: berisi jenis kejadian yang sedang dicatat.
+          if (l == LangkahCatat.apa || langkah[l]!.isNotEmpty) ...[
+            if (nomor > 0) const SizedBox(height: Jarak.s16),
+            KartuLangkah(
+              nomor: ++nomor,
+              judul: judulLangkah(l, spec),
+              children: [
+                if (l == LangkahCatat.apa) ...kepala,
+                for (final f in langkah[l]!) KeyedSubtree(key: _kunci[f.key], child: _field(spec, f)),
+                if (l == LangkahCatat.apa && spec.retur && _isEdit)
+                  Text('Catatan asal retur tidak bisa diganti; hapus lalu catat retur baru.',
+                      style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+              ],
+            ),
+          ],
+      ]),
     );
   }
 

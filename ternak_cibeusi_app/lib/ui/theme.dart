@@ -173,3 +173,29 @@ ThemeData temaSikaya() {
     iconTheme: const IconThemeData(color: Warna.primer),
   );
 }
+
+/// Isian terisi bersudut bulat untuk form di dalam kartu (form Catat): latar
+/// [Warna.isian] tanpa garis tepi; garis 2dp hanya saat difokus atau salah.
+/// Label selalu di atas isian ([LabelIsian]), jadi kotak tidak perlu garis untuk dikenali.
+ThemeData temaIsianTerisi(ThemeData dasar) {
+  final bulat = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(Sudut.kecil),
+    borderSide: BorderSide.none,
+  );
+  return dasar.copyWith(
+    inputDecorationTheme: dasar.inputDecorationTheme.copyWith(
+      filled: true,
+      fillColor: Warna.isian,
+      border: bulat,
+      enabledBorder: bulat,
+      disabledBorder: bulat,
+      focusedBorder: bulat.copyWith(borderSide: const BorderSide(color: Warna.primer, width: 2)),
+      errorBorder: bulat.copyWith(borderSide: const BorderSide(color: Warna.error, width: 2)),
+      focusedErrorBorder: bulat.copyWith(borderSide: const BorderSide(color: Warna.error, width: 2)),
+    ),
+  );
+}
+
+/// true bila isian di [context] memakai [temaIsianTerisi] (baris pilihan ikut terisi).
+bool isianTerisi(BuildContext context) =>
+    Theme.of(context).inputDecorationTheme.enabledBorder?.borderSide.style == BorderStyle.none;

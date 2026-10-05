@@ -8,6 +8,7 @@ import 'package:ternak_cibeusi_app/accounting/tx_form_spec.dart';
 import 'package:ternak_cibeusi_app/form_finance_page.dart';
 import 'package:ternak_cibeusi_app/transaction_model.dart';
 import 'package:ternak_cibeusi_app/ui/komponen.dart';
+import 'package:ternak_cibeusi_app/ui/tokens.dart';
 
 import 'ui_helpers.dart';
 
@@ -76,6 +77,70 @@ void main() {
       }
     });
   }
+
+  test('setiap isian setiap jenis masuk tepat satu langkah, urutan langkah tetap', () {
+    for (final s in [...txFormSpecs.values, returFormSpec].where((s) => s.manual)) {
+      expect(s.field(FieldKey.keterangan), isNotNull, reason: s.label);
+      expect(langkahIsian(FieldKey.keterangan), LangkahCatat.catatan);
+      expect(judulLangkah(LangkahCatat.kapan, s),
+          s.field(FieldKey.sumberBayar) == null ? 'Kapan' : 'Kapan dan dibayar bagaimana');
+    }
+  });
+
+  for (final skala in skalaUji) {
+    testWidgets('form beli aset ${skala}x: kartu per langkah berurutan, label di atas, isian terisi', (tester) async {
+      await bukaCatat(tester, await repoBerisi(), skala);
+      await ketuk(tester, find.text('Beli kandang/peralatan/kendaraan/tanah'));
+      final judul = ['Apa yang dicatat', 'Berapa', 'Kapan dan dibayar bagaimana', 'Catatan tambahan'];
+      expect(find.byType(KartuLangkah), findsNWidgets(4));
+      var atas = double.negativeInfinity;
+      for (final j in judul) {
+        await gulirKe(tester, find.text(j));
+        dalamLebar(tester, find.text(j));
+        final y = tester.getTopLeft(find.text(j)).dy +
+            tester.state<ScrollableState>(daftarUtama().first).position.pixels;
+        expect(y, greaterThan(atas), reason: '$j berurutan');
+        atas = y;
+      }
+      // Label isian di atas kotaknya, di dalam kartu langkahnya.
+      for (final (label, langkah) in [
+        ('Nama aset', 'Apa yang dicatat'),
+        ('Harga beli (Rp)', 'Berapa'),
+        ('Cara bayar', 'Kapan dan dibayar bagaimana'),
+        ('Catatan (boleh kosong)', 'Catatan tambahan'),
+      ]) {
+        await gulirKe(tester, find.text(label));
+        final kartu = find.ancestor(of: find.text(label), matching: find.byType(KartuLangkah));
+        expect(find.descendant(of: kartu, matching: find.text(langkah)), findsOneWidget, reason: label);
+      }
+      // Isian terisi bersudut bulat tanpa garis tepi saat tidak difokus.
+      for (final e in find.byType(InputDecorator, skipOffstage: false).evaluate()) {
+        final d = (e.widget as InputDecorator).decoration.applyDefaults(Theme.of(e).inputDecorationTheme);
+        expect(d.filled, isTrue);
+        expect(d.fillColor, Warna.isian);
+        expect(d.enabledBorder, isA<OutlineInputBorder>().having((b) => b.borderSide.style, 'garis', BorderStyle.none));
+        expect((d.enabledBorder! as OutlineInputBorder).borderRadius, BorderRadius.circular(Sudut.kecil));
+      }
+      cekTinggiKontrol(tester);
+      await cekAreaSentuh(tester);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('jual tunai: tanpa cara bayar, langkah "Kapan"; isian salah digulir terlihat', (tester) async {
+    final repo = await repoUji();
+    await bukaCatat(tester, repo, 2.0);
+    await ketuk(tester, find.text('Jual, dibayar tunai'));
+    await semuaTerlihat(tester, ['Apa yang dicatat', 'Berapa', 'Kapan', 'Catatan tambahan']);
+    expect(find.text('Kapan dan dibayar bagaimana'), findsNothing);
+    await tester.tap(find.text('Simpan'));
+    await tester.pumpAndSettle();
+    final salah = find.text('Nominal (Rp) wajib diisi');
+    expect(salah, findsOneWidget);
+    final r = tester.getRect(salah);
+    expect(r.top, greaterThanOrEqualTo(0));
+    expect(r.bottom, lessThanOrEqualTo(tinggiLayar));
+  });
 
   testWidgets('Simpan dengan isian kosong: pesan salah tampil, tidak ada yang tersimpan', (tester) async {
     final repo = await repoUji();
