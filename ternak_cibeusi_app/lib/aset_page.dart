@@ -336,126 +336,189 @@ class _DetailAsetTetapPageState extends State<DetailAsetTetapPage> {
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Detail aset')),
+      body: FutureBuilder<File?>(
+        future: _file,
+        builder: (context, snap) => _isi(snap.data, snap.connectionState == ConnectionState.done),
+      ),
+    );
+  }
+
+  /// Tombol sumber foto (kamera / galeri).
+  Widget _tombolFoto() => Wrap(spacing: Jarak.s8, runSpacing: Jarak.s8, children: [
+        TombolKedua(
+            label: 'Ambil foto',
+            ikon: Icons.photo_camera_rounded,
+            lebarPenuh: false,
+            onPressed: () => _ambil(ImageSource.camera)),
+        TombolKedua(
+            label: 'Pilih dari galeri',
+            ikon: Icons.photo_library_rounded,
+            lebarPenuh: false,
+            onPressed: () => _ambil(ImageSource.gallery)),
+      ]);
+
+  /// Tanpa foto: pilih sumber foto di lembar bawah.
+  Future<void> _tambahFoto() async {
+    final sumber = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true, // huruf besar: isi boleh lebih tinggi dari separuh layar, dan digulir
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(Jarak.s16, 0, Jarak.s16, Jarak.s16),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('Tambah foto ${widget.aset.nama}', style: Theme.of(ctx).textTheme.titleMedium),
+            const SizedBox(height: Jarak.s12),
+            TombolKedua(
+                label: 'Ambil foto',
+                ikon: Icons.photo_camera_rounded,
+                onPressed: () => Navigator.pop(ctx, ImageSource.camera)),
+            const SizedBox(height: Jarak.s8),
+            TombolKedua(
+                label: 'Pilih dari galeri',
+                ikon: Icons.photo_library_rounded,
+                onPressed: () => Navigator.pop(ctx, ImageSource.gallery)),
+          ]),
+        ),
+      ),
+    );
+    if (sumber != null) await _ambil(sumber);
+  }
+
+  Widget _isi(File? foto, bool dimuat) {
     final t = Theme.of(context).textTheme;
     final a = widget.aset;
     final riwayat = a.riwayat.reversed.toList();
     final tampil = _semua ? riwayat : riwayat.take(12).toList();
-    return Scaffold(
-      appBar: AppBar(title: const Text('Detail aset')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s16, Jarak.s16, Jarak.s24),
-        children: [
-          FutureBuilder<File?>(
-            future: _file,
-            builder: (context, snap) => ClipRRect(
-              borderRadius: BorderRadius.circular(Sudut.kartu),
-              child: snap.data == null
-                  ? Container(
-                      height: 160,
-                      color: Warna.primerMuda,
-                      alignment: Alignment.center,
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.add_a_photo_rounded, size: 48, color: Warna.primer),
-                        const SizedBox(height: Jarak.s8),
-                        Text('Belum ada foto', style: t.bodyLarge!.copyWith(color: Warna.primer)),
-                      ]),
-                    )
-                  : Image.file(snap.data!, height: 220, width: double.infinity, fit: BoxFit.cover,
-                      semanticLabel: 'Foto ${a.nama}'),
-            ),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s16, Jarak.s16, Jarak.s24),
+      children: [
+        // Ada foto: foto di atas. Tanpa foto: hanya baris ringkas di bawah informasi utama.
+        if (foto != null) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(Sudut.kartu),
+            child: Image.file(foto, height: 220, width: double.infinity, fit: BoxFit.cover,
+                semanticLabel: 'Foto ${a.nama}'),
           ),
           const SizedBox(height: Jarak.s12),
-          Wrap(spacing: Jarak.s8, runSpacing: Jarak.s8, children: [
-            TombolKedua(
-                label: 'Ambil foto',
-                ikon: Icons.photo_camera_rounded,
-                lebarPenuh: false,
-                onPressed: () => _ambil(ImageSource.camera)),
-            TombolKedua(
-                label: 'Pilih dari galeri',
-                ikon: Icons.photo_library_rounded,
-                lebarPenuh: false,
-                onPressed: () => _ambil(ImageSource.gallery)),
-          ]),
+          _tombolFoto(),
           const SizedBox(height: Jarak.s24),
-          Text(a.nama, style: t.headlineSmall),
+        ],
+        Text(a.nama, style: t.headlineSmall),
+        const SizedBox(height: Jarak.s8),
+        Wrap(spacing: Jarak.s8, runSpacing: Jarak.s8, children: [
+          ChipPil(teksSisaUmur(a), nada: a.sisaBulan == 0 ? Nada.peringatan : Nada.netral, ikon: ikonSisaUmur(a)),
+          ChipPil('Siap pakai ${bulanPendek(a.siapPakai)}', ikon: Icons.event_rounded),
+        ]),
+        const SizedBox(height: Jarak.s16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Jarak.s16, vertical: Jarak.s8),
+            child: Column(children: [
+              BarisLaporan(label: 'Nilai perolehan', nilai: rupiah(a.hargaPerolehan)),
+              BarisLaporan(label: 'Akumulasi penyusutan', nilai: rupiah(-a.akumulasi)),
+              Container(
+                decoration: const BoxDecoration(border: Border(top: BorderSide(color: Warna.teksSekunder))),
+                child: BarisLaporan(label: 'Nilai buku', nilai: rupiah(a.nilaiBuku), tebal: true, warnaNilai: Warna.primer),
+              ),
+              if (a.disusutkan) ...[
+                BarisLaporan(label: 'Umur manfaat', nilai: '${a.umurBulan} bulan'),
+                BarisLaporan(label: 'Sisa umur', nilai: '${a.sisaBulan} bulan'),
+                BarisLaporan(label: 'Susut per bulan', nilai: rupiah(_susutBulanan(a))),
+              ],
+            ]),
+          ),
+        ),
+        if (foto == null && dimuat) ...[
           const SizedBox(height: Jarak.s8),
-          Wrap(spacing: Jarak.s8, runSpacing: Jarak.s8, children: [
-            ChipPil(teksSisaUmur(a), nada: a.sisaBulan == 0 ? Nada.peringatan : Nada.netral, ikon: ikonSisaUmur(a)),
-            ChipPil('Siap pakai ${bulanPendek(a.siapPakai)}', ikon: Icons.event_rounded),
-          ]),
-          const SizedBox(height: Jarak.s16),
+          BarisTambahFoto(onTap: _tambahFoto),
+        ],
+        if (a.keterangan.isNotEmpty) ...[
+          const SizedBox(height: Jarak.s12),
+          Text(a.keterangan, style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
+        ],
+        const SizedBox(height: Jarak.s24),
+        const JudulSeksi('Riwayat penyusutan'),
+        const SizedBox(height: Jarak.s4),
+        Text(
+            a.disusutkan
+                ? 'Garis lurus tanpa nilai sisa, mulai bulan siap pakai. Dihitung otomatis, tidak perlu dicatat.'
+                : 'Tanah tidak disusutkan; nilainya tetap sebesar harga perolehan.',
+            style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+        const SizedBox(height: Jarak.s12),
+        if (a.disusutkan && riwayat.isEmpty)
+          Card(
+            child: KosongRamah(
+              ikon: Icons.event_available_rounded,
+              judul: 'Belum mulai disusutkan',
+              isi: 'Penyusutan pertama dihitung pada ${bulanPendek(a.siapPakai)}.',
+            ),
+          ),
+        if (riwayat.isNotEmpty)
           Card(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: Jarak.s16, vertical: Jarak.s8),
-              child: Column(children: [
-                BarisLaporan(label: 'Nilai perolehan', nilai: rupiah(a.hargaPerolehan)),
-                BarisLaporan(label: 'Akumulasi penyusutan', nilai: rupiah(-a.akumulasi)),
-                Container(
-                  decoration: const BoxDecoration(border: Border(top: BorderSide(color: Warna.teksSekunder))),
-                  child: BarisLaporan(label: 'Nilai buku', nilai: rupiah(a.nilaiBuku), tebal: true, warnaNilai: Warna.primer),
-                ),
-                if (a.disusutkan) ...[
-                  BarisLaporan(label: 'Umur manfaat', nilai: '${a.umurBulan} bulan'),
-                  BarisLaporan(label: 'Sisa umur', nilai: '${a.sisaBulan} bulan'),
-                  BarisLaporan(label: 'Susut per bulan', nilai: rupiah(_susutBulanan(a))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                _KepalaRiwayat(),
+                for (final r in tampil) ...[
+                  const Divider(),
+                  BarisRiwayatSusut(baris: r),
                 ],
               ]),
             ),
           ),
-          if (a.keterangan.isNotEmpty) ...[
-            const SizedBox(height: Jarak.s12),
-            Text(a.keterangan, style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
-          ],
-          const SizedBox(height: Jarak.s24),
-          const JudulSeksi('Riwayat penyusutan'),
-          const SizedBox(height: Jarak.s4),
-          Text(
-              a.disusutkan
-                  ? 'Garis lurus tanpa nilai sisa, mulai bulan siap pakai. Dihitung otomatis, tidak perlu dicatat.'
-                  : 'Tanah tidak disusutkan; nilainya tetap sebesar harga perolehan.',
-              style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+        if (riwayat.length > 12 && !_semua) ...[
           const SizedBox(height: Jarak.s12),
-          if (a.disusutkan && riwayat.isEmpty)
-            Card(
-              child: KosongRamah(
-                ikon: Icons.event_available_rounded,
-                judul: 'Belum mulai disusutkan',
-                isi: 'Penyusutan pertama dihitung pada ${bulanPendek(a.siapPakai)}.',
-              ),
-            ),
-          if (riwayat.isNotEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Jarak.s16, vertical: Jarak.s8),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  _KepalaRiwayat(),
-                  for (final r in tampil) ...[
-                    const Divider(),
-                    BarisRiwayatSusut(baris: r),
-                  ],
-                ]),
-              ),
-            ),
-          if (riwayat.length > 12 && !_semua) ...[
-            const SizedBox(height: Jarak.s12),
-            TombolKedua(
-              label: 'Tampilkan semua (${riwayat.length} bulan)',
-              ikon: Icons.expand_more_rounded,
-              onPressed: () => setState(() => _semua = true),
-            ),
-          ],
-          if (a.idBeli != null) ...[
-            const SizedBox(height: Jarak.s24),
-            TombolKedua(label: 'Lihat catatan pembelian', ikon: Icons.receipt_long_rounded, onPressed: _bukaCatatan),
-          ],
+          TombolKedua(
+            label: 'Tampilkan semua (${riwayat.length} bulan)',
+            ikon: Icons.expand_more_rounded,
+            onPressed: () => setState(() => _semua = true),
+          ),
         ],
-      ),
+        if (a.idBeli != null) ...[
+          const SizedBox(height: Jarak.s24),
+          TombolKedua(label: 'Lihat catatan pembelian', ikon: Icons.receipt_long_rounded, onPressed: _bukaCatatan),
+        ],
+      ],
     );
   }
 
   int _susutBulanan(AsetTetapTampil a) =>
       a.riwayat.isNotEmpty ? a.riwayat.first.susut : roundHalfAwayFromZero(a.hargaPerolehan, a.umurBulan!);
+}
+
+/// Baris ringkas aset tanpa foto: ikon kecil + "Tambah foto", tinggi sentuh >= 48dp.
+class BarisTambahFoto extends StatelessWidget {
+  const BarisTambahFoto({super.key, required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Sudut.kecil),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: tinggiSentuh),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Jarak.s8, vertical: Jarak.s8),
+            child: Row(children: [
+              Icon(Icons.add_a_photo_rounded, size: 20 * skalaIkon(context), color: Warna.primer),
+              const SizedBox(width: Jarak.s8),
+              Expanded(
+                child: Text('Tambah foto', style: t.titleSmall!.copyWith(color: Warna.primer, fontWeight: FontWeight.w700)),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 24 * skalaIkon(context), color: Warna.primer),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _KepalaRiwayat extends StatelessWidget {
