@@ -50,6 +50,12 @@ void main() {
       await foto(tester, 'form-jual$akhiran');
       await tester.pageBack(); // ke pilihan
       await tenang(tester);
+      await ketuk(tester, find.text('Beli kandang/peralatan/kendaraan/tanah'));
+      await foto(tester, 'form-aset$akhiran');
+      await gulirKe(tester, find.text('Catatan tambahan'));
+      await foto(tester, 'form-aset-bawah$akhiran');
+      await tester.pageBack(); // ke pilihan
+      await tenang(tester);
       await tester.pageBack();
       await tenang(tester);
 

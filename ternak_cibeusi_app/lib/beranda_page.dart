@@ -95,6 +95,10 @@ Future<RingkasanBeranda> muatBerandaAplikasi(AccountingRepository repo, {DateTim
 String teksPeriode(DateTime dari, DateTime sampai) =>
     'Bulan ini: ${dari.day}–${sampai.day} ${namaBulan[sampai.month - 1]} ${sampai.year}';
 
+/// Versi pendek untuk huruf sangat besar: "1–4 Okt 2026" (satu baris).
+String teksPeriodePendek(DateTime dari, DateTime sampai) =>
+    '${dari.day}–${sampai.day} ${namaBulan[sampai.month - 1].substring(0, 3)} ${sampai.year}';
+
 /// Sapaan menurut jam (header Beranda).
 String sapaan(DateTime t) => switch (t.hour) {
       < 11 => 'Selamat pagi',
@@ -251,7 +255,7 @@ class _BerandaPageState extends State<BerandaPage> {
                 alignment: PlaceholderAlignment.middle,
                 child: Icon(Icons.calendar_month_rounded, size: 18, color: Warna.putih),
               ),
-              TextSpan(text: ' ${teksPeriode(r.dari, r.sampai)}'),
+              TextSpan(text: ' ${ringkas ? teksPeriodePendek(r.dari, r.sampai) : teksPeriode(r.dari, r.sampai)}'),
             ]),
             style: t.bodySmall!.copyWith(color: Warna.putih, fontWeight: FontWeight.w600),
           ),
@@ -281,8 +285,10 @@ class _BerandaPageState extends State<BerandaPage> {
                 nilai: rupiah(r.labaBersih.abs()),
                 ikon: untung ? Icons.trending_up_rounded : Icons.trending_down_rounded,
                 nada: untung ? Nada.sukses : Nada.error,
-                keterangan: 'Penjualan dikurangi biaya yang terpakai bulan ini, termasuk pakan '
-                    'dan penyusutan. Uang masuk belum tentu untung.',
+                keterangan: _ringkas
+                    ? 'Penjualan dikurangi biaya bulan ini. Uang masuk belum tentu untung.'
+                    : 'Penjualan dikurangi biaya yang terpakai bulan ini, termasuk pakan '
+                        'dan penyusutan. Uang masuk belum tentu untung.',
               ),
               if (_ringkas) ...[jarak, _tombolCatat],
               if (r.perluDitinjau case final w?) ...[

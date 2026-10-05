@@ -127,20 +127,25 @@ class ItemCatatan extends StatelessWidget {
           ]
         : const <Widget>[];
 
+    double lebar(String teks, TextStyle gaya) {
+      final ukur = TextPainter(
+        text: TextSpan(text: teks, style: gaya),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      final w = ukur.width;
+      ukur.dispose();
+      return w;
+    }
+
     Widget isi(BoxConstraints k) {
       // Huruf normal: nominal di samping judul. Bila nominal terlalu lebar (atau huruf
       // besar), nominal turun ke baris sendiri di bawah judul, rata kanan, satu baris.
-      var samping = !bertumpuk;
-      if (samping) {
-        final ukur = TextPainter(
-          text: TextSpan(text: nilai, style: gayaNilai),
-          textDirection: Directionality.of(context),
-          textScaler: MediaQuery.textScalerOf(context),
-          maxLines: 1,
-        )..layout();
-        samping = ukur.width + Jarak.s12 <= k.maxWidth * 0.5;
-        ukur.dispose();
-      }
+      final lebarNilai = lebar(nilai, gayaNilai);
+      final samping = !bertumpuk && lebarNilai + Jarak.s12 <= k.maxWidth * 0.5;
+      // Kata arah sebaris dengan nominal bila keduanya muat; bila tidak, di bawahnya.
+      final arahSebaris = lebar(kataArah(c), gayaArah) + Jarak.s8 + lebarNilai <= k.maxWidth;
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (samping)
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -154,8 +159,16 @@ class ItemCatatan extends StatelessWidget {
         else ...[
           judul,
           const SizedBox(height: Jarak.s8),
-          TeksUang(nilai, gaya: gayaNilai, kanan: true),
-          Text(kataArah(c), textAlign: TextAlign.right, style: gayaArah),
+          if (arahSebaris)
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              Text(kataArah(c), style: gayaArah),
+              const SizedBox(width: Jarak.s8),
+              Expanded(child: TeksUang(nilai, gaya: gayaNilai, kanan: true)),
+            ])
+          else ...[
+            TeksUang(nilai, gaya: gayaNilai, kanan: true),
+            Text(kataArah(c), textAlign: TextAlign.right, style: gayaArah),
+          ],
         ],
         ...perluDicek,
       ]);

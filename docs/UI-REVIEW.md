@@ -21,6 +21,11 @@ hasil akhir per layar. Data di semua gambar adalah data demo fiktif.
 - **Batas:** maksimal 3 putaran per layar. Lembar kontak tiap putaran:
   [putaran 1](ui-review/putaran-1.png), [putaran 2](ui-review/putaran-2.png),
   [putaran 3](ui-review/putaran-3.png), [sesudah](ui-review/sesudah.png).
+- **Lanjutan (4 layar terlemah, maks. 2 putaran):** [lanjutan 1](ui-review/lanjutan-1.png),
+  [lanjutan 2](ui-review/lanjutan-2.png). Lihat bagian "Lanjutan" di bawah.
+- **Catatan alat:** layar emulator harus menyala dan tidak terkunci
+  (`adb shell svc power stayon true`). Bila aplikasi diluncurkan saat layar tidur,
+  permukaan splash bisa tersangkut di emulator dan semua foto berisi splash; reboot emulator.
 
 ## Yang berubah di semua layar
 
@@ -84,7 +89,8 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
   ikon per jenis kejadian (hijau = uang masuk, oranye tua = keluar, biru = lainnya).
   Kepala form memakai ikon yang sama. Tidak ada temuan.
 - Putaran 3: awalan "Rp" di isian nominal hanya terlihat saat difokus; kini selalu terlihat.
-- Daftar periksa: a/b/c/d lolos; form tetap memakai isian standar (lihat "masih lemah").
+- Daftar periksa: a/b/c/d lolos.
+- Lanjutan: form berkartu per langkah dengan isian terisi (lihat "Lanjutan").
 
 ### Catatan (riwayat)
 | Sebelum | Sesudah |
@@ -95,6 +101,7 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
   judul (turun ke bawah, tetap rata kanan, bila huruf besar), kepala bulan dengan jumlah
   catatan, keadaan kosong ramah. Tidak ada temuan yang diperbaiki pada putaran 2-3.
 - Daftar periksa: a/b/d lolos; c lolos dengan catatan (judul panjang turun 2-3 baris).
+- Lanjutan: huruf >= 1,3x memakai baris bertumpuk (lihat "Lanjutan").
 
 ### Aset (baru)
 | Sebelum | Sesudah |
@@ -145,12 +152,57 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 - Putaran 3: chip "Pemilik peternakan" dua baris pada 2,0x kini bersudut 14.
 - Daftar periksa: a/b/c/d lolos.
 
+## Lanjutan: empat layar terlemah
+
+Empat layar dari daftar "masih lemah" sebelumnya diperbaiki, lalu difoto di emulator
+Pixel 9 (huruf 1,0x dan 2,0x) dan dibandingkan dengan acuan [`ref-lama/`](ref-lama/)
+(form lama: isian terisi abu muda bersudut bulat, label di atas; daftar keuangan: ubin
+ikon, nominal rata kanan). Dua putaran:
+[lanjutan 1](ui-review/lanjutan-1.png), [lanjutan 2](ui-review/lanjutan-2.png).
+
+| Layar | Sesudah |
+|---|---|
+| Catatan, huruf 2,0x | ![](ui-review/sesudah-catatan-huruf-besar.png) |
+| Form Catat (beli aset) | ![](ui-review/sesudah-form-aset.png) |
+| Beranda, huruf 2,0x | ![](screenshots/beranda-huruf-besar.png) |
+| Detail aset tanpa foto | ![](ui-review/sesudah-detail-aset-tanpa-foto.png) |
+
+1. **Catatan (riwayat).** Mulai huruf 1,3x baris bertumpuk: judul maks. 2 baris dengan
+   "...", nominal di baris sendiri di bawah judul, rata kanan, figur tabular (pembaca
+   layar tetap membaca judul utuh). Huruf normal tetap berdampingan.
+   - Putaran 1: sesuai aturan; temuan: kata arah ("Keluar") memakan satu baris lagi,
+     hanya ±1,5 catatan per layar pada 2,0x.
+   - Putaran 2: kata arah sebaris dengan nominal bila keduanya muat (diukur); di 411dp
+     dengan huruf 2,0x nominal jutaan tidak muat, jadi tetap dua baris. Tidak ada temuan baru.
+2. **Form Catat.** Kartu bernomor per langkah: "Apa yang dicatat" (jenis kejadian +
+   isian apa), "Berapa", "Kapan dan dibayar bagaimana" (judul "Kapan" bila jenis itu tidak
+   punya pilihan cara bayar), "Catatan tambahan". Label di atas isian; isian terisi
+   `Warna.isian` bersudut 12 tanpa garis tepi (garis 2dp hanya saat fokus/salah); baris
+   pilihan ikut terisi. Isian, label, dan validasi tetap dari `tx_form_spec.dart`.
+   - Putaran 1: temuan: "Ganti pilihan" selebar penuh terlalu dominan; pada 2,0x
+     penjelasan jenis menjorok di bawah ubin sehingga sempit (5 baris).
+   - Putaran 2: "Ganti pilihan" selebar isinya, penjelasan selebar kartu; label isian
+     pertama kini terlihat di layar pertama pada 2,0x. Tidak ada temuan baru.
+3. **Beranda huruf >= 1,5x.** Header tanpa logo, jarak lebih rapat, nama usaha maks. 2
+   baris; tombol "Apa yang terjadi?" tidak dipin, tepat di bawah kartu utama.
+   - Putaran 1: angka utama dan tombol masuk layar pertama; temuan: chip periode patah 2
+     baris, keterangan kartu utama 6 baris.
+   - Putaran 2: chip "1–4 Okt 2026" satu baris, keterangan dipersingkat; layar pertama kini
+     memuat angka utama, tombol, dan awal kartu "Uang masuk". Tidak ada temuan baru.
+4. **Detail aset tanpa foto.** Kotak besar "Belum ada foto" diganti baris ringkas (ikon
+   kecil + "Tambah foto", >= 48dp) di bawah nilai perolehan, nilai buku, dan sisa umur;
+   sumber foto dipilih di lembar bawah. Putaran 1 dan 2: tidak ada temuan. Tes widget
+   menemukan lembar bawah overflow pada 2,0x sebelum foto; diperbaiki (bisa digulir).
+
+Daftar periksa keempat layar: a/b/c/d lolos.
+
 ## Masih paling lemah secara visual
 
-1. **Catatan (riwayat):** judul catatan yang panjang turun 2-3 baris di samping nominal;
-   pada huruf 2,0x daftar terasa padat.
-2. **Form Catat:** isian masih bergaya standar (kotak bergaris); belum ada pengelompokan
-   visual per langkah.
-3. **Beranda pada huruf 2,0x:** header dan kartu utama memenuhi layar pertama; tombol
-   tetap "Apa yang terjadi?" dan navigasi memakan sekitar seperempat layar.
-4. **Detail aset tanpa foto:** kotak "Belum ada foto" besar sebelum informasi utama.
+1. **Catatan pada huruf 2,0x:** tetap ±1,5 catatan per layar; kata arah dan nominal hanya
+   sebaris bila nominal pendek.
+2. **Detail aset pada huruf 2,0x:** nama aset (judul besar) dan baris laporan dua baris
+   membuat "Tambah foto" baru terlihat sesudah digulir.
+3. **Form Catat pada huruf 2,0x:** langkah 1 masih memenuhi layar pertama untuk jenis
+   dengan penjelasan panjang.
+4. **Teks bantuan isian** (mis. umur manfaat) menjorok 16dp mengikuti isi isian, tidak
+   sejajar dengan label di atasnya.

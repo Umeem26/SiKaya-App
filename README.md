@@ -28,7 +28,7 @@ Screenshots and the short screen recording ([docs/demo-flow.mp4](docs/demo-flow.
 - **Assets** tab: fixed assets with photo, cost, book value, remaining useful life and the monthly depreciation history from the engine; feed/medicine/livestock stock with quantity, value and a low-stock warning. Home shows the same asset summary. The visual review (before/after, three review rounds) is in [docs/UI-REVIEW.md](docs/UI-REVIEW.md).
 - **Two-layer reports.** A plain-language summary (money in/out, profit, stock value, fixed assets, payables, receivables), then formal statements: Statement of Financial Position, Income Statement, Statement of Changes in Equity and auto-generated Notes to the Financial Statements (CaLK). One combined PDF export.
 - **Period closing** is non-destructive: the database is backed up, the period's profit is posted to retained earnings, and records up to the closing date are locked (corrections go through dated reversals).
-- **Backup and restore** of the whole database file (with a weekly reminder), CSV export for Excel, a separate non-financial inventory list.
+- **Backup and restore** as one zip with the database, asset and inventory photos and a manifest (validated before anything is replaced; old `.db` backups still restore; weekly reminder), CSV export for Excel, a separate non-financial inventory list.
 - **Offline only.** Data is stored in SQLite on the phone; the release manifest requests no internet permission.
 
 ## Accounting basis and limitations
@@ -58,8 +58,8 @@ The engine is a set of pure functions over in-memory data, so the accounting rul
 
 | Suite | Count | What it covers |
 | --- | ---: | --- |
-| `test/accounting/` | 100 | The worked scenarios from the spec with hand-calculated answers, report invariants (assets = liabilities + equity, the same net profit in the income statement and in equity changes, report cash = cash book), depreciation, land, closing, backup/restore, edge cases, form validation |
-| `test/ui/` | 69 | Widget tests at 360dp width with font scale 1.0 and 2.0: no clipped text, tap targets of at least 48dp (Android guideline), colour contrast ratios, and record/edit/delete flows checked against engine numbers |
+| `test/accounting/` | 109 | The worked scenarios from the spec with hand-calculated answers, report invariants (assets = liabilities + equity, the same net profit in the income statement and in equity changes, report cash = cash book), depreciation, land, closing, backup/restore (including corrupt zips, unknown manifests and `../` paths), edge cases, form validation |
+| `test/ui/` | 93 | Widget tests at 360dp width with font scale 1.0 and 2.0: no clipped text, tap targets of at least 48dp (Android guideline), colour contrast ratios, and record/edit/delete flows checked against engine numbers |
 | `integration_test/` | 1 | One simulated day on an Android emulator, end to end (below) |
 
 The integration test runs the real app on an emulator with fictional data: onboarding, 19 records through the UI across every transaction group (some dated in the previous month through the date picker), Home and both report layers compared with the engine's numbers and with hand-calculated cash, payables, receivables and stock, closing the previous month, checking that editing or deleting a locked record is refused, exporting the PDF (the file is checked; the OS share sheet is not opened), and "Delete all data" returning to onboarding.
