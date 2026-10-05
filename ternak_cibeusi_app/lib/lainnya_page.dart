@@ -12,6 +12,7 @@ import 'package:path/path.dart' as pathlib;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart' show Share, ShareResultStatus, XFile;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' show databaseFactory;
 
 import 'accounting/repository.dart';
 import 'database/backup.dart';
@@ -46,18 +47,29 @@ Future<String?> _bagikanAtauSimpan(String path, String nama, String mime, String
   return loc.path;
 }
 
-/// Ekspor salinan file DB: Android lewat lembar bagikan (Drive, WhatsApp, Files),
-/// desktop lewat dialog simpan. Mengembalikan nama/lokasi tujuan, null bila dibatalkan.
+/// Cadangan aplikasi: file DB beserta folder foto aset tetap dan inventaris.
+final cadanganAplikasi = BackupService(
+  open: () => DatabaseHelper.instance.database,
+  close: DatabaseHelper.instance.close,
+  factory: () => databaseFactory,
+  folderFotoAset: folderFotoAsetAplikasi,
+  folderFotoInventaris: folderFotoInventarisAplikasi,
+);
+
+/// Ekspor zip cadangan (DB + foto): Android lewat lembar bagikan (Drive, WhatsApp,
+/// Files), desktop lewat dialog simpan. Mengembalikan nama/lokasi tujuan, null bila dibatalkan.
 Future<String?> eksporCadanganAplikasi() async {
-  final nama = backupFileName(DateTime.now());
-  final tmp = await BackupService.instance.exportTo(pathlib.join((await getTemporaryDirectory()).path, nama));
-  return _bagikanAtauSimpan(tmp, nama, 'application/octet-stream', 'db');
+  final nama = backupZipFileName(DateTime.now());
+  final tmp = await cadanganAplikasi.exportZipTo(pathlib.join((await getTemporaryDirectory()).path, nama));
+  return _bagikanAtauSimpan(tmp, nama, 'application/zip', 'zip');
 }
 
 Future<({String path, String nama})?> pilihFileCadanganAplikasi() async {
   final file = await openFile(
     // Android memfilter dengan MIME; file .db tidak punya MIME baku, jadi semua file ditampilkan.
-    acceptedTypeGroups: _seluler ? const [] : const [XTypeGroup(label: 'Cadangan SiKaya', extensions: ['db'])],
+    // Zip (baru, dengan foto) dan .db (lama, tanpa foto) sama-sama diterima.
+    acceptedTypeGroups:
+        _seluler ? const [] : const [XTypeGroup(label: 'Cadangan SiKaya', extensions: ['zip', 'db'])],
   );
   return file == null ? null : (path: file.path, nama: file.name);
 }
@@ -95,14 +107,18 @@ class LayananLainnya {
   /// Muat ulang aplikasi dari awal (sesudah pulihkan/hapus semua).
   final void Function(BuildContext context) mulaiUlang;
 
-  Future<BackupSummary> periksa(String p) => (periksaCadangan ?? BackupService.instance.inspect)(p);
-  Future<BackupSummary> sekarang() => (ringkasanSekarang ?? BackupService.instance.currentSummary)();
-  Future<RestoreResult> pulihkanDari(String p) => (pulihkan ?? BackupService.instance.restoreFrom)(p);
+  Future<BackupSummary> periksa(String p) => (periksaCadangan ?? cadanganAplikasi.inspect)(p);
+  Future<BackupSummary> sekarang() => (ringkasanSekarang ?? cadanganAplikasi.currentSummary)();
+  Future<RestoreResult> pulihkanDari(String p) => (pulihkan ?? cadanganAplikasi.restoreFrom)(p);
   Future<String> hapus() async {
     final f = hapusSemua;
     if (f != null) return f();
     final cadangan = await DatabaseHelper.instance.resetDatabase();
     await SumberFotoAset.instance.hapusSemua(); // foto aset tetap menempel ke id yang akan dipakai ulang
+    try {
+      final inv = await folderFotoInventarisAplikasi();
+      if (await inv.exists()) await inv.delete(recursive: true);
+    } catch (_) {}
     return cadangan;
   }
 }
@@ -207,6 +223,7 @@ class _LainnyaPageState extends State<LainnyaPage> {
 
   String _ringkas(BackupSummary s) =>
       '${s.transaksi} catatan, ${s.asetTetap} aset tetap, ${s.inventaris} barang inventaris'
+      '${s.jumlahFoto == 0 ? '' : ', ${s.jumlahFoto} foto'}'
       '${s.tanggalAwal == null ? '' : '\nTanggal catatan: ${s.tanggalAwal} s.d. ${s.tanggalAkhir}'}'
       '${s.ditutupSampai == null ? '' : '\nDitutup buku sampai: ${s.ditutupSampai}'}';
 

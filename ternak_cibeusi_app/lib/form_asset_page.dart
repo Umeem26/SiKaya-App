@@ -7,12 +7,22 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'asset_model.dart';
+import 'foto_aset.dart';
 import 'inventaris_data.dart';
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
 
-Future<String?> _pilihFotoAplikasi(ImageSource sumber) async =>
-    (await ImagePicker().pickImage(source: sumber, imageQuality: 50))?.path;
+/// Foto terkompres disalin ke folder foto inventaris (file pemilih foto hanya sementara,
+/// dan folder itu ikut cadangan zip).
+Future<String?> _pilihFotoAplikasi(ImageSource sumber) async {
+  final path = await ambilFotoTerkompres(sumber);
+  if (path == null) return null;
+  try {
+    return await simpanFotoInventaris(path, await folderFotoInventarisAplikasi());
+  } catch (_) {
+    return path;
+  }
+}
 
 class FormAssetPage extends StatefulWidget {
   const FormAssetPage({super.key, this.asset, this.sumber, this.kelompokAwal, this.hariIni, this.pilihFoto});

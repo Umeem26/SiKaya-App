@@ -312,7 +312,7 @@ class _DetailAsetTetapPageState extends State<DetailAsetTetapPage> {
   bool _semua = false;
 
   Future<void> _ambil(ImageSource sumber) async {
-    final path = (await ImagePicker().pickImage(source: sumber, imageQuality: 60, maxWidth: 1600))?.path;
+    final path = await ambilFotoTerkompres(sumber);
     if (path == null) return;
     final lama = await _file;
     if (lama != null) await FileImage(lama).evict();

@@ -49,6 +49,7 @@ dependencies:
   share_plus: ^7.1.0
   fl_chart: ^0.63.0
   shared_preferences: ^2.2.2
+  archive: ^4.0.7 # zip cadangan (sudah dipakai transitif)
 
 dev_dependencies:
   flutter_test:
