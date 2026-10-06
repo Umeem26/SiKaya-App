@@ -257,6 +257,58 @@ class KartuLangkah extends StatelessWidget {
   }
 }
 
+// --- Profil ---
+
+final _hurufAwal = RegExp(r'[\p{L}\p{N}]', unicode: true);
+
+/// Inisial avatar: huruf pertama dua kata pertama ("Ternak Cibeusi Makmur" -> "TC");
+/// '' bila nama kosong.
+String inisialNama(String? nama) => [
+      for (final kata in (nama ?? '').trim().split(RegExp(r'\s+')))
+        if (_hurufAwal.firstMatch(kata) case final h?) h[0]!.toUpperCase(),
+    ].take(2).join();
+
+/// Avatar profil usaha: lingkaran berisi inisial nama, atau ikon orang bila nama
+/// kosong. Bukan logo aplikasi: logo hanya di splash, onboarding, dan ikon aplikasi.
+/// Ukuran ikut skala ikon (huruf HP, maks. 1,5x); nama di sampingnya yang dibaca
+/// pembaca layar, jadi avatar sendiri tidak diumumkan.
+class AvatarProfil extends StatelessWidget {
+  const AvatarProfil({super.key, required this.nama, this.ukuran = 64, this.diAtasMerek = false});
+  final String? nama;
+  final double ukuran;
+
+  /// Di atas gradien merek: lingkaran putih, inisial biru.
+  final bool diAtasMerek;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = ukuran * skalaIkon(context);
+    final inisial = inisialNama(nama);
+    final warnaIsi = diAtasMerek ? Warna.primer : Warna.putih;
+    return ExcludeSemantics(
+      child: Container(
+        width: d,
+        height: d,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: diAtasMerek ? Warna.putih : null,
+          gradient: diAtasMerek ? null : gradienMerek,
+          shape: BoxShape.circle,
+        ),
+        child: inisial.isEmpty
+            ? Icon(Icons.person_rounded, color: warnaIsi, size: d * 0.6)
+            : Text(inisial,
+                maxLines: 1,
+                textScaler: TextScaler.noScaling, // lingkaran sudah ikut skala ikon
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge!
+                    .copyWith(color: warnaIsi, fontSize: d * 0.38, height: 1, letterSpacing: 0.5)),
+      ),
+    );
+  }
+}
+
 /// Keadaan kosong yang ramah: ilustrasi ikon, judul, kalimat ajakan, aksi opsional.
 class KosongRamah extends StatelessWidget {
   const KosongRamah({

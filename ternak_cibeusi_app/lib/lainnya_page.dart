@@ -157,6 +157,9 @@ class _LainnyaPageState extends State<LainnyaPage> {
   DateTime get _hariIni => widget.hariIni ?? DateTime.now();
 
   String _nama = '';
+
+  /// Nama seperti tersimpan (null/kosong = avatar berikon orang).
+  String? _namaTersimpan;
   DateTime? _cadanganTerakhir;
   DateTime? _ditutupSampai;
   bool _sibuk = false;
@@ -180,6 +183,7 @@ class _LainnyaPageState extends State<LainnyaPage> {
     if (!mounted) return;
     setState(() {
       _nama = nama ?? 'Usaha Saya';
+      _namaTersimpan = nama;
       _cadanganTerakhir = DateTime.tryParse(cadangan ?? '');
       _ditutupSampai = kunci;
     });
@@ -394,7 +398,12 @@ class _LainnyaPageState extends State<LainnyaPage> {
     if (baru == null || baru.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('owner_name', baru);
-    if (mounted) setState(() => _nama = baru);
+    if (mounted) {
+      setState(() {
+        _nama = baru;
+        _namaTersimpan = baru;
+      });
+    }
   }
 
   Future<void> _hapusSemua() async {
@@ -445,18 +454,12 @@ class _LainnyaPageState extends State<LainnyaPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s16, Jarak.s16, Jarak.s24),
         children: [
-          // Profil usaha (gaya Pengaturan lama): logo, nama, peran.
+          // Profil usaha (gaya Pengaturan lama): avatar inisial, nama, peran.
           Card(
             child: Padding(
               padding: const EdgeInsets.all(Jarak.s16),
               child: Row(children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  padding: const EdgeInsets.all(Jarak.s8),
-                  decoration: const BoxDecoration(color: Warna.primerMuda, shape: BoxShape.circle),
-                  child: ClipOval(child: Image.asset('assets/icon_ayam.png', fit: BoxFit.contain)),
-                ),
+                AvatarProfil(nama: _namaTersimpan),
                 const SizedBox(width: Jarak.s16),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

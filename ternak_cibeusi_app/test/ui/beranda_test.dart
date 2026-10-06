@@ -146,13 +146,13 @@ void main() {
     });
   }
 
-  testWidgets('Beranda huruf 2,0x: header ringkas (tanpa logo), angka utama dan tombol di layar pertama',
+  testWidgets('Beranda huruf 2,0x: header ringkas (tanpa avatar), angka utama dan tombol di layar pertama',
       (tester) async {
     await pasang(tester, skala: 2.0);
-    // Header ringkas: tanpa logo, jarak atas 8dp, nama usaha maks. 2 baris.
+    // Header ringkas: tanpa avatar, jarak atas 8dp, nama usaha maks. 2 baris.
     // (Tinggi layar pertama diperiksa di emulator: huruf uji Ahem jauh lebih lebar dari Roboto.)
     final header = find.byType(HeaderMerek);
-    expect(find.descendant(of: header, matching: find.byType(Image)), findsNothing);
+    expect(find.descendant(of: header, matching: find.byType(AvatarProfil)), findsNothing);
     expect(tester.widget<HeaderMerek>(header).atas, Jarak.s8);
     expect(tester.widget<Text>(find.text(contoh.namaUsaha)).maxLines, 2);
     // Tombol tepat di bawah kartu utama, sebelum kartu lain (bukan di dasar daftar).
@@ -170,9 +170,12 @@ void main() {
     expect(find.widgetWithText(AppBar, 'Apa yang terjadi?'), findsOneWidget);
   });
 
-  testWidgets('Beranda huruf 1,0x: header dengan logo, tombol dipin di bawah', (tester) async {
+  testWidgets('Beranda huruf 1,0x: header dengan avatar profil (bukan logo), tombol dipin di bawah', (tester) async {
     await pasang(tester, skala: 1.0);
-    expect(find.descendant(of: find.byType(HeaderMerek), matching: find.byType(Image)), findsOneWidget);
+    final avatar = find.descendant(of: find.byType(HeaderMerek), matching: find.byType(AvatarProfil));
+    expect(avatar, findsOneWidget);
+    expect(find.descendant(of: avatar, matching: find.text('PA')), findsOneWidget);
+    expect(find.descendant(of: find.byType(HeaderMerek), matching: find.byType(Image)), findsNothing);
     expect(find.ancestor(of: tombolCatat(), matching: find.byType(Scrollable)), findsNothing);
   });
 

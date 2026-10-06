@@ -233,16 +233,10 @@ class _BerandaPageState extends State<BerandaPage> {
                   overflow: TextOverflow.ellipsis),
             ]),
           ),
-          // Logo hanya hiasan: disembunyikan pada huruf sangat besar agar header pendek.
+          // Avatar profil hanya hiasan: disembunyikan pada huruf sangat besar agar header pendek.
           if (!ringkas) ...[
             const SizedBox(width: Jarak.s12),
-            Container(
-              width: 52,
-              height: 52,
-              padding: const EdgeInsets.all(Jarak.s4),
-              decoration: const BoxDecoration(color: Warna.putih, shape: BoxShape.circle),
-              child: ClipOval(child: Image.asset('assets/icon_ayam.png', fit: BoxFit.contain)),
-            ),
+            AvatarProfil(nama: r.namaUsaha, ukuran: 52, diAtasMerek: true),
           ],
         ]),
         SizedBox(height: ringkas ? Jarak.s8 : Jarak.s12),
