@@ -10,6 +10,7 @@ import 'package:printing/printing.dart';
 import 'accounting/calk.dart';
 import 'laporan_data.dart';
 import 'laporan_pdf.dart';
+import 'ui/alasan.dart';
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
 
@@ -20,9 +21,12 @@ Future<void> _bagikanPdf(Uint8List pdf, String namaFile) async {
 const judulTabResmi = ['Posisi Keuangan', 'Laba Rugi', 'CaLK', 'Perubahan Ekuitas'];
 
 class LaporanResmiPage extends StatefulWidget {
-  const LaporanResmiPage({super.key, required this.data, this.bagikan});
+  const LaporanResmiPage({super.key, required this.data, this.bagikan, this.ditutupSampai});
   final DataLaporan data;
   final Future<void> Function(Uint8List pdf, String namaFile)? bagikan;
+
+  /// Tanggal tutup buku terakhir; periode yang mencakupnya berlencana "Ditutup".
+  final DateTime? ditutupSampai;
 
   @override
   State<LaporanResmiPage> createState() => _LaporanResmiPageState();
@@ -116,6 +120,8 @@ class _LaporanResmiPageState extends State<LaporanResmiPage> {
             ),
             const SizedBox(height: Jarak.s4),
             Text(periode, textAlign: TextAlign.center, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+            if (widget.ditutupSampai case final k? when !d.dari.isAfter(k))
+              LencanaDitutup(label: labelDitutup(k), onTap: () => jelaskanDitutup(context, k)),
           ]),
         ),
         if (d.r.peringatanTinjau case final w?) ...[

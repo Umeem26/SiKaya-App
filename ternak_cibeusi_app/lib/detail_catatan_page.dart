@@ -1,4 +1,6 @@
 // Detail satu catatan dengan tombol "Ubah" dan "Hapus" berlabel (UI-PLAN.md 3.3).
+// Catatan otomatis atau yang sudah ditutup buku: panel info dengan penjelasan,
+// bukan tombol yang pasti ditolak.
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart' show DatabaseException;
 
@@ -7,6 +9,7 @@ import 'accounting/repository.dart';
 import 'accounting/tx_form_spec.dart';
 import 'form_finance_page.dart';
 import 'transaction_model.dart';
+import 'ui/alasan.dart';
 import 'ui/item_catatan.dart';
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
@@ -25,16 +28,34 @@ class _DetailCatatanPageState extends State<DetailCatatanPage> {
   late TransactionModel _c = widget.catatan;
   FixedAssetModel? _aset;
 
+  /// Tanggal tutup buku terakhir; [_kunciDimuat] false = belum dibaca (tombol belum ditampilkan).
+  DateTime? _ditutupSampai;
+  bool _kunciDimuat = false;
+
   @override
   void initState() {
     super.initState();
     _muatAset();
+    _muatKunci();
   }
 
   Future<void> _muatAset() async {
     final id = _c.assetId;
     final a = id == null ? null : await _repo.fixedAssetById(id);
     if (mounted) setState(() => _aset = a);
+  }
+
+  Future<void> _muatKunci() async {
+    DateTime? k;
+    try {
+      k = await _repo.lockedUntil();
+    } catch (_) {} // gagal membaca: tombol tetap tampil, penolakan tetap dijaga repository
+    if (mounted) {
+      setState(() {
+        _ditutupSampai = k;
+        _kunciDimuat = true;
+      });
+    }
   }
 
   Future<void> _ubah() async {
@@ -95,6 +116,7 @@ class _DetailCatatanPageState extends State<DetailCatatanPage> {
     final c = _c;
     final spec = specFor(c);
     final nilai = nilaiCatatan(c);
+    final ditutup = sudahDitutup(c.date, _ditutupSampai);
     final baris = <(String, String)>[
       ('Tanggal', tanggalPanjang(c.date)),
       ('Nilai', nilai ?? 'Dihitung otomatis dari harga rata-rata stok'),
@@ -120,6 +142,14 @@ class _DetailCatatanPageState extends State<DetailCatatanPage> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           Text(labelTransaksi(c), style: t.headlineSmall),
+          if (ditutup) ...[
+            const SizedBox(height: Jarak.s8),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: LencanaDitutup(
+                  label: labelDitutup(_ditutupSampai!), onTap: () => jelaskanDitutup(context, _ditutupSampai!)),
+            ),
+          ],
           if (c.perluDitinjau) ...[
             const SizedBox(height: 12),
             BannerPeringatan(
@@ -138,12 +168,25 @@ class _DetailCatatanPageState extends State<DetailCatatanPage> {
             ),
           ),
           const SizedBox(height: 24),
-          if (spec.manual)
-            TombolKedua(label: 'Ubah', ikon: Icons.edit_rounded, onPressed: _ubah)
-          else
-            Text('Tidak bisa diubah: ${spec.otomatis}', style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
-          const SizedBox(height: 12),
-          TombolBahaya(label: 'Hapus', ikon: Icons.delete_rounded, onPressed: _hapus),
+          if (ditutup)
+            PanelInfo(
+              judul: 'Sudah ditutup buku',
+              isi: 'Catatan sampai ${tanggalPanjang(isoTanggal(_ditutupSampai!))} dikunci saat tutup buku, '
+                  'jadi tidak bisa diubah atau dihapus.',
+              onInfo: () => jelaskanDitutup(context, _ditutupSampai!),
+            )
+          else if (_kunciDimuat) ...[
+            if (spec.manual)
+              TombolKedua(label: 'Ubah', ikon: Icons.edit_rounded, onPressed: _ubah)
+            else
+              PanelInfo(
+                judul: 'Dicatat otomatis',
+                isi: ringkasOtomatis(c.txType),
+                onInfo: () => jelaskanOtomatis(context, c.txType),
+              ),
+            const SizedBox(height: 12),
+            TombolBahaya(label: 'Hapus', ikon: Icons.delete_rounded, onPressed: _hapus),
+          ],
         ],
       ),
     );

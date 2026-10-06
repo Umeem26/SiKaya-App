@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'accounting/repository.dart';
 import 'laporan_data.dart';
 import 'laporan_resmi_page.dart';
+import 'ui/alasan.dart';
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
 
@@ -30,6 +31,9 @@ class _ReportPageState extends State<ReportPage> {
   PilihanPeriode _pilihan = PilihanPeriode.bulanIni;
   DateTime? _dari, _sampai;
   late Future<DataLaporan> _data = _muat();
+
+  /// Tanggal tutup buku terakhir (lencana "Ditutup"); gagal dibaca = tanpa lencana.
+  late final Future<DateTime?> _kunci = _repo.lockedUntil().then<DateTime?>((k) => k, onError: (_) => null);
 
   DateTime get _hariIni => widget.hariIni ?? DateTime.now();
 
@@ -84,7 +88,7 @@ class _ReportPageState extends State<ReportPage> {
             ]);
           }
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          return _ringkasan(snap.data!);
+          return FutureBuilder<DateTime?>(future: _kunci, builder: (context, k) => _ringkasan(snap.data!, k.data));
         },
       ),
       bottomNavigationBar: FutureBuilder<DataLaporan>(
@@ -97,11 +101,16 @@ class _ReportPageState extends State<ReportPage> {
               ikon: Icons.description_rounded,
               onPressed: snap.data == null
                   ? null
-                  : () => Navigator.push(
+                  : () async {
+                      final kunci = await _kunci;
+                      if (!context.mounted) return;
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => LaporanResmiPage(data: snap.data!, bagikan: widget.bagikan)),
-                      ),
+                            builder: (_) =>
+                                LaporanResmiPage(data: snap.data!, bagikan: widget.bagikan, ditutupSampai: kunci)),
+                      );
+                    },
             ),
           ),
         ),
@@ -109,7 +118,7 @@ class _ReportPageState extends State<ReportPage> {
     );
   }
 
-  Widget _ringkasan(DataLaporan d) {
+  Widget _ringkasan(DataLaporan d, DateTime? ditutupSampai) {
     final t = Theme.of(context).textTheme;
     final untung = d.untungRugi >= 0;
     const jarak = SizedBox(height: Jarak.s12);
@@ -140,6 +149,9 @@ class _ReportPageState extends State<ReportPage> {
                   Text(d.namaUsaha, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
                   Text('${tanggalResmi(d.dari)} s.d. ${tanggalResmi(d.sampai)}',
                       style: t.titleSmall!.copyWith(color: Warna.primer, fontWeight: FontWeight.w700)),
+                  if (ditutupSampai != null && !d.dari.isAfter(ditutupSampai))
+                    LencanaDitutup(
+                        label: labelDitutup(ditutupSampai), onTap: () => jelaskanDitutup(context, ditutupSampai)),
                 ]),
               ),
             ]),

@@ -9,6 +9,7 @@ import 'accounting/models.dart';
 import 'accounting/repository.dart';
 import 'accounting/tx_form_spec.dart';
 import 'transaction_model.dart';
+import 'ui/alasan.dart';
 import 'ui/item_catatan.dart';
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
@@ -22,7 +23,8 @@ class KelompokCatat {
 TxTypeFormSpec _s(TxType t) => txFormSpecs[t]!;
 
 /// Urutan layar "Apa yang terjadi?". Setiap spec muncul tepat sekali; yang
-/// dicatat otomatis tetap tampil (nonaktif) beserta alasannya.
+/// dicatat otomatis tampil di kelompok terakhir yang bisa dilipat, sebagai kartu
+/// info beserta alasannya.
 final kelompokCatat = [
   KelompokCatat('Jual & terima uang',
       [_s(TxType.penjualanTunai), _s(TxType.penjualanKredit), _s(TxType.terimaPiutang)]),
@@ -248,13 +250,35 @@ class _FormFinancePageState extends State<FormFinancePage> {
   }
 
   String? _alasanNonaktif(TxTypeFormSpec s) {
-    if (!s.manual) return s.otomatis;
+    if (!s.manual) return ringkasOtomatis(s.type);
     if (s.retur && _retur.isEmpty) return 'Belum ada catatan yang bisa diretur.';
     if (s.type == TxType.terimaPiutang && _piutang.isEmpty) {
       return 'Belum ada penjualan yang belum dibayar.';
     }
     return null;
   }
+
+  /// Ketuk pilihan yang belum bisa dipilih: lembar alasan dengan tombol pintas.
+  void _jelaskan(TxTypeFormSpec s) {
+    if (!s.manual) {
+      jelaskanOtomatis(context, s.type);
+    } else if (s.retur) {
+      jelaskanBelumAdaRetur(context);
+    } else {
+      jelaskanBelumAdaPiutang(context,
+          catatJualBelumDibayar: () => setState(() => _pilih(txFormSpecs[TxType.penjualanKredit]!)));
+    }
+  }
+
+  Widget _kartu(TxTypeFormSpec s) => KartuPilihan(
+        judul: s.label,
+        penjelasan: s.penjelasan,
+        alasanNonaktif: _alasanNonaktif(s),
+        ikon: ikonJenis(s.type),
+        nada: _nadaJenis(s.type),
+        onTap: () => setState(() => _pilih(s)),
+        onInfo: () => _jelaskan(s),
+      );
 
   /// Nada ubin per jenis: arah kas bila jelas (masuk hijau, keluar oranye tua), selain itu biru.
   Nada _nadaJenis(TxType? t) => t == null ? Nada.netral : nadaArah(cashDirection(t));
@@ -269,17 +293,17 @@ class _FormFinancePageState extends State<FormFinancePage> {
             style: t.bodyLarge!.copyWith(color: Warna.teksSekunder)),
         for (final k in kelompokCatat) ...[
           const SizedBox(height: Jarak.s24),
-          JudulSeksi(k.judul),
-          for (final s in k.pilihan) ...[
-            const SizedBox(height: Jarak.s12),
-            KartuPilihan(
-              judul: s.label,
-              penjelasan: s.penjelasan,
-              alasanNonaktif: _alasanNonaktif(s),
-              ikon: ikonJenis(s.type),
-              nada: _nadaJenis(s.type),
-              onTap: () => setState(() => _pilih(s)),
-            ),
+          // Kelompok yang seluruhnya dicatat otomatis: terpisah dan terlipat.
+          if (k.pilihan.every((s) => !s.manual))
+            KelompokLipat(judul: k.judul, penjelasan: penjelasDicatatOtomatis, children: [
+              for (final s in k.pilihan) _kartu(s),
+            ])
+          else ...[
+            JudulSeksi(k.judul),
+            for (final s in k.pilihan) ...[
+              const SizedBox(height: Jarak.s12),
+              _kartu(s),
+            ],
           ],
         ],
       ],
@@ -292,7 +316,11 @@ class _FormFinancePageState extends State<FormFinancePage> {
       return ListView(padding: const EdgeInsets.all(16), children: [
         Text(spec.label, style: t.headlineSmall),
         const SizedBox(height: 12),
-        BannerPeringatan(judul: 'Tidak bisa diubah di sini', isi: spec.otomatis!),
+        PanelInfo(
+          judul: 'Dicatat otomatis',
+          isi: ringkasOtomatis(spec.type),
+          onInfo: () => jelaskanOtomatis(context, spec.type),
+        ),
       ]);
     }
     final langkah = <LangkahCatat, List<FieldSpec>>{
@@ -348,8 +376,14 @@ class _FormFinancePageState extends State<FormFinancePage> {
                 if (l == LangkahCatat.apa) ...kepala,
                 for (final f in langkah[l]!) KeyedSubtree(key: _kunci[f.key], child: _field(spec, f)),
                 if (l == LangkahCatat.apa && spec.retur && _isEdit)
-                  Text('Catatan asal retur tidak bisa diganti; hapus lalu catat retur baru.',
-                      style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(Icons.info_outline_rounded, color: Warna.primer, size: 20 * skalaIkon(context)),
+                    const SizedBox(width: Jarak.s8),
+                    Expanded(
+                      child: Text('Catatan asal retur tidak bisa diganti; hapus lalu catat retur baru.',
+                          style: t.bodySmall),
+                    ),
+                  ]),
               ],
             ),
           ],

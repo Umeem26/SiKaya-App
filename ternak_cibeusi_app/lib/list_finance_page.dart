@@ -1,11 +1,13 @@
 // Riwayat catatan (UI-PLAN.md bagian 3.3): daftar per bulan; ketuk satu catatan
-// untuk melihat detail dengan tombol "Ubah" dan "Hapus" berlabel.
+// untuk melihat detail dengan tombol "Ubah" dan "Hapus" berlabel. Periode yang
+// sudah ditutup buku berlencana "Ditutup" (bulan penuh: di judul bulan).
 import 'package:flutter/material.dart';
 
 import 'accounting/repository.dart';
 import 'detail_catatan_page.dart';
 import 'form_finance_page.dart';
 import 'transaction_model.dart';
+import 'ui/alasan.dart';
 import 'ui/item_catatan.dart';
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
@@ -24,11 +26,16 @@ class ListFinancePage extends StatefulWidget {
 class _ListFinancePageState extends State<ListFinancePage> {
   late final AccountingRepository _repo = widget.repo ?? AccountingRepository.instance;
   late Future<List<TransactionModel>> _data = _repo.transactions();
+  late Future<DateTime?> _kunci = _bacaKunci();
   bool _hanyaPerluDicek = false;
+
+  /// Gagal membaca tanggal tutup buku tidak menghalangi daftar (lencana saja yang hilang).
+  Future<DateTime?> _bacaKunci() => _repo.lockedUntil().then<DateTime?>((k) => k, onError: (_) => null);
 
   void _muatUlang() {
     setState(() {
       _data = _repo.transactions();
+      _kunci = _bacaKunci();
     });
   }
 
@@ -67,13 +74,16 @@ class _ListFinancePageState extends State<ListFinancePage> {
             ]);
           }
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          return _daftar(snap.data!);
+          return FutureBuilder<DateTime?>(
+            future: _kunci,
+            builder: (context, k) => _daftar(snap.data!, k.data),
+          );
         },
       ),
     );
   }
 
-  Widget _daftar(List<TransactionModel> semua) {
+  Widget _daftar(List<TransactionModel> semua, DateTime? ditutupSampai) {
     final t = Theme.of(context).textTheme;
     final perluDicek = semua.where((c) => c.perluDitinjau).length;
     final tampil = _hanyaPerluDicek ? semua.where((c) => c.perluDitinjau).toList() : semua;
@@ -127,15 +137,20 @@ class _ListFinancePageState extends State<ListFinancePage> {
                 children: [
                   Semantics(header: true, child: Text(judulBulan(b), style: t.titleMedium)),
                   ChipPil('$n catatan'),
+                  if (bulanDitutup(b, ditutupSampai))
+                    LencanaDitutup(onTap: () => jelaskanDitutup(context, ditutupSampai!)),
                 ],
               ),
             );
           }
           final c = b as TransactionModel;
+          final bulan = c.date.length >= 7 ? c.date.substring(0, 7) : c.date;
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: ItemCatatan(
               catatan: c,
+              // Bulan yang ditutup sebagian: lencana per catatan (bulan penuh sudah di judulnya).
+              ditutup: sudahDitutup(c.date, ditutupSampai) && !bulanDitutup(bulan, ditutupSampai),
               onTap: () => _buka(DetailCatatanPage(catatan: c, repo: widget.repo)),
             ),
           );
@@ -143,6 +158,12 @@ class _ListFinancePageState extends State<ListFinancePage> {
       ),
     );
   }
+}
+
+/// true bila seluruh bulan [yyyyMm] sudah ditutup buku (akhir bulan <= [ditutupSampai]).
+bool bulanDitutup(String yyyyMm, DateTime? ditutupSampai) {
+  final t = DateTime.tryParse('$yyyyMm-01');
+  return t != null && ditutupSampai != null && !DateTime(t.year, t.month + 1, 0).isAfter(ditutupSampai);
 }
 
 /// "2026-10" -> "Oktober 2026".

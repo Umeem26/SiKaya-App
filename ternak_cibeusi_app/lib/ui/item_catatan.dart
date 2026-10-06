@@ -83,9 +83,12 @@ Nada nadaArah(int arahKas) => arahKas > 0 ? Nada.sukses : (arahKas < 0 ? Nada.pe
 const skalaCatatanBertumpuk = 1.3;
 
 class ItemCatatan extends StatelessWidget {
-  const ItemCatatan({super.key, required this.catatan, this.onTap});
+  const ItemCatatan({super.key, required this.catatan, this.onTap, this.ditutup = false});
   final TransactionModel catatan;
   final VoidCallback? onTap;
+
+  /// Tanggalnya sudah ditutup buku: lencana "Ditutup" (penjelasan ada di detail).
+  final bool ditutup;
 
   @override
   Widget build(BuildContext context) {
@@ -171,6 +174,10 @@ class ItemCatatan extends StatelessWidget {
           ],
         ],
         ...perluDicek,
+        if (ditutup) ...[
+          const SizedBox(height: Jarak.s8),
+          const Align(alignment: AlignmentDirectional.centerStart, child: LencanaDitutup()),
+        ],
       ]);
     }
 

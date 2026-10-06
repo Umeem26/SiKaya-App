@@ -7,6 +7,7 @@ import 'package:ternak_cibeusi_app/accounting/repository.dart';
 import 'package:ternak_cibeusi_app/accounting/tx_form_spec.dart';
 import 'package:ternak_cibeusi_app/form_finance_page.dart';
 import 'package:ternak_cibeusi_app/transaction_model.dart';
+import 'package:ternak_cibeusi_app/ui/alasan.dart';
 import 'package:ternak_cibeusi_app/ui/komponen.dart';
 import 'package:ternak_cibeusi_app/ui/tokens.dart';
 
@@ -37,13 +38,19 @@ void main() {
         (tester) async {
       await bukaCatat(tester, await repoBerisi(), skala);
       expect(MediaQuery.textScalerOf(tester.element(find.byType(FormFinancePage))).scale(10), 10 * skala);
+      final otomatis = [txFormSpecs[TxType.penyusutan]!, txFormSpecs[TxType.tutupBuku]!];
       await semuaTerlihat(tester, [
-        for (final k in kelompokCatat) ...[k.judul, for (final s in k.pilihan) s.label],
+        for (final k in kelompokCatat) ...[k.judul, for (final s in k.pilihan) if (s.manual) s.label],
       ]);
-      // Yang otomatis tetap tampil, dengan alasan.
-      for (final s in [txFormSpecs[TxType.penyusutan]!, txFormSpecs[TxType.tutupBuku]!]) {
-        await semuaTerlihat(tester, ['Belum bisa dipilih: ${s.otomatis}']);
+      // Yang otomatis: kelompok terlipat; dibuka, tampil dengan alasan dan "Kenapa?".
+      for (final s in otomatis) {
+        expect(find.text(s.label), findsNothing);
       }
+      await ketuk(tester, find.text('Dicatat otomatis'));
+      await semuaTerlihat(tester, [
+        for (final s in otomatis) ...[s.label, ringkasOtomatis(s.type)],
+      ]);
+      expect(find.byIcon(Icons.lock_rounded), findsNothing);
       expect(find.byType(KartuPilihan), findsWidgets);
       cekTinggiKontrol(tester);
       await cekAreaSentuh(tester);

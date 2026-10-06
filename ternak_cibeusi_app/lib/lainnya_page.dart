@@ -21,6 +21,7 @@ import 'foto_aset.dart';
 import 'inventaris_data.dart';
 import 'list_asset_page.dart';
 import 'splash_page.dart';
+import 'ui/alasan.dart';
 import 'ui/komponen.dart';
 import 'ui/tokens.dart';
 
@@ -316,7 +317,7 @@ class _LainnyaPageState extends State<LainnyaPage> {
     final today = DateTime(now.year, now.month, now.day);
     if (!mounted) return;
     if (lock != null && !today.isAfter(lock)) {
-      await _pesan('Tutup buku', 'Catatan sampai ${_tgl(lock)} sudah ditutup buku.');
+      await jelaskanSudahDitutupHariIni(context, lock);
       return;
     }
     var awal = DateTime(now.year, now.month, 0); // akhir bulan lalu
@@ -510,6 +511,7 @@ class _LainnyaPageState extends State<LainnyaPage> {
               judul: 'Tutup buku',
               keterangan: 'Kunci catatan sampai tanggal tertentu dan pindahkan untung ke saldo laba. '
                   '${_ditutupSampai == null ? 'Belum pernah ditutup.' : 'Sudah ditutup sampai ${_tgl(_ditutupSampai!)}.'}',
+              lencana: _ditutupSampai == null ? null : LencanaDitutup(label: labelDitutup(_ditutupSampai!)),
               onTap: _sibuk ? null : _tutupBuku,
             ),
             _Menu(
@@ -622,12 +624,16 @@ class _Grup extends StatelessWidget {
 }
 
 class _Menu extends StatelessWidget {
-  const _Menu({required this.ikon, required this.judul, required this.keterangan, this.onTap, this.nada = Nada.netral});
+  const _Menu(
+      {required this.ikon, required this.judul, required this.keterangan, this.onTap, this.nada = Nada.netral, this.lencana});
   final IconData ikon;
   final String judul;
   final String keterangan;
   final VoidCallback? onTap;
   final Nada nada;
+
+  /// Pil di bawah keterangan (mis. "Ditutup s.d. ...").
+  final Widget? lencana;
 
   @override
   Widget build(BuildContext context) {
@@ -646,6 +652,7 @@ class _Menu extends StatelessWidget {
                 Text(judul, style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: Jarak.s4),
                 Text(keterangan, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+                if (lencana != null) ...[const SizedBox(height: Jarak.s8), lencana!],
               ]),
             ),
             const Padding(

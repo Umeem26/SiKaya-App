@@ -33,6 +33,11 @@ abstract final class TabUtama {
   static const beranda = 0, catat = 1, aset = 2, laporan = 3, lainnya = 4;
 }
 
+/// Pindah ke tab utama [tab] dari halaman mana pun, mis. tombol pintas di lembar
+/// alasan: halaman yang ditumpuk di atas HalamanUtama ditutup dulu. Tanpa
+/// HalamanUtama (tes satu halaman) tidak berbuat apa-apa.
+void pindahKeTab(int tab) => _HalamanUtamaState._aktif?._keTab(tab);
+
 class HalamanUtama extends StatefulWidget {
   const HalamanUtama({super.key, this.muatBeranda, this.repo, this.hariIni, this.bagikanPdf, this.fotoAset});
 
@@ -56,9 +61,31 @@ class HalamanUtama extends StatefulWidget {
 }
 
 class _HalamanUtamaState extends State<HalamanUtama> {
+  /// HalamanUtama yang sedang tampil (hanya satu dalam aplikasi).
+  static _HalamanUtamaState? _aktif;
+
   int _tab = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    _aktif = this;
+  }
+
+  @override
+  void dispose() {
+    if (_aktif == this) _aktif = null;
+    super.dispose();
+  }
+
   void _pindah(int i) => setState(() => _tab = i);
+
+  void _keTab(int i) {
+    if (!mounted) return;
+    final rute = ModalRoute.of(context);
+    if (rute != null) Navigator.of(context).popUntil((r) => r == rute);
+    _pindah(i);
+  }
 
   @override
   Widget build(BuildContext context) {

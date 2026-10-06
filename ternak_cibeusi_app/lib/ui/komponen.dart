@@ -1026,14 +1026,27 @@ class PilihanTombol<T> extends StatelessWidget {
 }
 
 /// Kartu pilihan besar di layar "Apa yang terjadi?": label + penjelasan.
-/// [alasanNonaktif] bukan null = tidak bisa dipilih; alasannya tetap ditampilkan.
+/// [alasanNonaktif] bukan null = tidak bisa dipilih: kartu tampil sebagai kartu
+/// info (rata biru muda, tanpa bayangan dan panah, ikon info), tetap bisa
+/// diketuk untuk membuka penjelasan ([onInfo]); tulisan tetap kontras penuh.
 class KartuPilihan extends StatelessWidget {
-  const KartuPilihan(
-      {super.key, required this.judul, this.penjelasan, this.alasanNonaktif, this.onTap, this.ikon, this.nada = Nada.netral});
+  const KartuPilihan({
+    super.key,
+    required this.judul,
+    this.penjelasan,
+    this.alasanNonaktif,
+    this.onTap,
+    this.onInfo,
+    this.ikon,
+    this.nada = Nada.netral,
+  });
   final String judul;
   final String? penjelasan;
   final String? alasanNonaktif;
   final VoidCallback? onTap;
+
+  /// Ketuk kartu yang tidak bisa dipilih: biasanya [tampilkanAlasan].
+  final VoidCallback? onInfo;
   final IconData? ikon;
   final Nada nada;
 
@@ -1043,55 +1056,305 @@ class KartuPilihan extends StatelessWidget {
     final aktif = alasanNonaktif == null;
     return Semantics(
       button: true,
-      enabled: aktif,
+      hint: aktif ? null : 'Ketuk untuk penjelasan',
       child: Material(
-        color: aktif ? Warna.permukaan : Warna.latar,
+        color: aktif ? Warna.permukaan : Warna.primerMuda,
         elevation: aktif ? 3 : 0,
         shadowColor: Warna.bayangan,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Sudut.kartu),
-          side: aktif ? BorderSide.none : const BorderSide(color: Warna.garis, width: 1.5),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Sudut.kartu)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: aktif ? onTap : null,
+          onTap: aktif ? onTap : onInfo,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 72),
             child: Padding(
               padding: const EdgeInsets.all(Jarak.s16),
-              child: Row(children: [
+              child: Row(crossAxisAlignment: aktif ? CrossAxisAlignment.center : CrossAxisAlignment.start, children: [
                 if (ikon != null) ...[
-                  UbinIkon(ikon!, nada: aktif ? nada : Nada.netral),
+                  aktif ? UbinIkon(ikon!, nada: nada) : _UbinInfo(ikon!),
                   const SizedBox(width: Jarak.s12),
                 ],
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(judul,
-                        style: t.titleSmall!
-                            .copyWith(color: aktif ? Warna.teks : Warna.teksSekunder, fontWeight: FontWeight.w700)),
-                    if (penjelasan != null && penjelasan!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                    Text(judul, style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
+                    if (aktif && penjelasan != null && penjelasan!.isNotEmpty) ...[
+                      const SizedBox(height: Jarak.s4),
                       Text(penjelasan!, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
                     ],
                     if (!aktif) ...[
-                      const SizedBox(height: 8),
-                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Icon(Icons.lock_rounded, color: Warna.teksSekunder),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text('Belum bisa dipilih: $alasanNonaktif',
-                              style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
-                        ),
-                      ]),
+                      const SizedBox(height: Jarak.s4),
+                      Text(alasanNonaktif!, style: t.bodySmall!.copyWith(color: Warna.teks)),
+                      const SizedBox(height: Jarak.s8),
+                      _TautanInfo(onInfo == null ? null : 'Kenapa?'),
                     ],
                   ]),
                 ),
                 if (aktif) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: Jarak.s8),
                   const Icon(Icons.chevron_right_rounded, color: Warna.primer, size: 32),
                 ],
               ]),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ubin putih berikon biru di atas latar biru muda (kartu info).
+class _UbinInfo extends StatelessWidget {
+  const _UbinInfo(this.ikon);
+  final IconData ikon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(color: Warna.permukaan, borderRadius: BorderRadius.circular(Sudut.kecil)),
+        child: Icon(ikon, color: Warna.primer, size: 24),
+      );
+}
+
+/// Baris "ⓘ Kenapa?" di kartu info: ikon info + tulisan biru tebal (bagian dari area ketuk kartu).
+class _TautanInfo extends StatelessWidget {
+  const _TautanInfo(this.label);
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    if (label == null) return const SizedBox.shrink();
+    final t = Theme.of(context).textTheme;
+    return Row(children: [
+      Icon(Icons.info_outline_rounded, color: Warna.primer, size: 20 * skalaIkon(context)),
+      const SizedBox(width: Jarak.s4),
+      Flexible(child: Text(label!, style: t.labelMedium!.copyWith(color: Warna.primer, fontWeight: FontWeight.w800))),
+    ]);
+  }
+}
+
+// --- Yang terkunci / dicatat otomatis ---
+// Prinsip: yang terkunci tidak tampak rusak atau mati. Tidak ada gembok atau
+// tulisan abu-abu; yang tidak bisa dipilih tampil sebagai info biru muda dengan
+// ikon info, dan ketukannya membuka lembar bawah berisi alasan dalam bahasa
+// petani beserta satu tombol pintas ke tempat yang relevan.
+
+/// Lembar bawah alasan: ikon info, judul, penjelasan, satu tombol pintas.
+/// Tombol menutup lembar dulu, lalu menjalankan [onAksi].
+Future<void> tampilkanAlasan(
+  BuildContext context, {
+  required String judul,
+  required String isi,
+  required String aksi,
+  required IconData ikonAksi,
+  required VoidCallback onAksi,
+}) =>
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true, // huruf besar: boleh lebih tinggi dari separuh layar, dan digulir
+      backgroundColor: Warna.permukaan,
+      builder: (ctx) {
+        final t = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(Jarak.s16, 0, Jarak.s16, Jarak.s16),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const UbinIkon(Icons.info_outline_rounded),
+                const SizedBox(width: Jarak.s12),
+                Expanded(child: Semantics(header: true, child: Text(judul, style: t.titleMedium))),
+              ]),
+              const SizedBox(height: Jarak.s12),
+              Text(isi, style: t.bodyLarge),
+              const SizedBox(height: Jarak.s24),
+              TombolUtama(
+                label: aksi,
+                ikon: ikonAksi,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  onAksi();
+                },
+              ),
+            ]),
+          ),
+        );
+      },
+    );
+
+/// Kelompok yang bisa dilipat (mis. "Dicatat otomatis"): kepala berikon info,
+/// judul, satu kalimat penjelas, dan tanda buka/tutup; isinya di bawah.
+/// Kotak putih rata bergaris tipis, berbeda dari kartu pilihan yang berbayang.
+class KelompokLipat extends StatefulWidget {
+  const KelompokLipat(
+      {super.key, required this.judul, required this.penjelasan, required this.children, this.terbuka = false});
+  final String judul;
+  final String penjelasan;
+  final List<Widget> children;
+
+  /// Keadaan awal.
+  final bool terbuka;
+
+  @override
+  State<KelompokLipat> createState() => _KelompokLipatState();
+}
+
+class _KelompokLipatState extends State<KelompokLipat> {
+  // Disimpan di PageStorage: tetap terbuka walau digulir keluar dari daftar yang dibangun malas.
+  late bool _terbuka =
+      PageStorage.maybeOf(context)?.readState(context, identifier: _kunci) as bool? ?? widget.terbuka;
+
+  String get _kunci => 'lipat:${widget.judul}';
+
+  void _ubah() {
+    setState(() => _terbuka = !_terbuka);
+    PageStorage.maybeOf(context)?.writeState(context, _terbuka, identifier: _kunci);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Material(
+      color: Warna.permukaan,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Sudut.kartu),
+        side: const BorderSide(color: Warna.garis, width: 1.5),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Semantics(
+          button: true,
+          expanded: _terbuka,
+          child: InkWell(
+            onTap: _ubah,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 72),
+              child: Padding(
+                padding: const EdgeInsets.all(Jarak.s16),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const UbinIkon(Icons.info_outline_rounded),
+                  const SizedBox(width: Jarak.s12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Semantics(
+                        header: true,
+                        child: Text(widget.judul, style: t.titleMedium),
+                      ),
+                      const SizedBox(height: Jarak.s4),
+                      Text(widget.penjelasan, style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
+                      const SizedBox(height: Jarak.s8),
+                      Row(children: [
+                        Flexible(
+                          child: Text(_terbuka ? 'Sembunyikan' : 'Lihat ${widget.children.length} jenis',
+                              style: t.labelMedium!.copyWith(color: Warna.primer, fontWeight: FontWeight.w800)),
+                        ),
+                        AnimatedRotation(
+                          turns: _terbuka ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(Icons.expand_more_rounded, color: Warna.primer, size: 24 * skalaIkon(context)),
+                        ),
+                      ]),
+                    ]),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          alignment: Alignment.topCenter,
+          child: _terbuka
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(Jarak.s12, 0, Jarak.s12, Jarak.s12),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    for (var i = 0; i < widget.children.length; i++) ...[
+                      if (i > 0) const SizedBox(height: Jarak.s8),
+                      widget.children[i],
+                    ],
+                  ]),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Lencana "Ditutup" (periode sudah tutup buku): pil biru muda berikon info.
+/// [onTap] bukan null = bisa diketuk (area sentuh 48dp) untuk membuka penjelasan.
+class LencanaDitutup extends StatelessWidget {
+  const LencanaDitutup({super.key, this.label = 'Ditutup', this.onTap});
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final pil = Container(
+      padding: const EdgeInsets.symmetric(horizontal: Jarak.s12, vertical: Jarak.s4),
+      decoration: BoxDecoration(color: Warna.primerMuda, borderRadius: BorderRadius.circular(14)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.info_outline_rounded, size: 18 * skalaIkon(context), color: Warna.primer),
+        const SizedBox(width: Jarak.s4),
+        Flexible(
+          child: Text(label, style: gayaAngka(t.labelMedium!.copyWith(color: Warna.primer, fontWeight: FontWeight.w800))),
+        ),
+      ]),
+    );
+    if (onTap == null) return pil;
+    return Semantics(
+      button: true,
+      hint: 'Ketuk untuk penjelasan',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Sudut.kecil),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: tinggiSentuh, minWidth: tinggiSentuh),
+          child: Align(widthFactor: 1, heightFactor: 1, alignment: AlignmentDirectional.centerStart, child: pil),
+        ),
+      ),
+    );
+  }
+}
+
+/// Panel info selebar layar (catatan otomatis, catatan yang sudah ditutup buku):
+/// latar biru muda, ikon info, judul, kalimat, dan baris "Kenapa?" yang membuka penjelasan.
+class PanelInfo extends StatelessWidget {
+  const PanelInfo({super.key, required this.judul, required this.isi, this.onInfo, this.labelInfo = 'Kenapa?'});
+  final String judul;
+  final String isi;
+  final VoidCallback? onInfo;
+  final String labelInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Semantics(
+      button: onInfo != null,
+      child: Material(
+        color: Warna.primerMuda,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Sudut.kartu)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onInfo,
+          child: Padding(
+            padding: const EdgeInsets.all(Jarak.s16),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const _UbinInfo(Icons.info_outline_rounded),
+              const SizedBox(width: Jarak.s12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(judul, style: t.titleSmall!.copyWith(color: Warna.primer, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: Jarak.s4),
+                  Text(isi, style: t.bodyLarge),
+                  if (onInfo != null) ...[
+                    const SizedBox(height: Jarak.s8),
+                    _TautanInfo(labelInfo),
+                  ],
+                ]),
+              ),
+            ]),
           ),
         ),
       ),
