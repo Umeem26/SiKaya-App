@@ -81,9 +81,15 @@ class _LukisCatat extends CustomPainter {
     c.drawCircle(pusat.translate(0, 5), u * 0.11, _cat(Warna.bayangan));
     c.drawCircle(pusat, u * 0.11, _cat(Warna.aksen));
     c.drawCircle(pusat, u * 0.075, _cat(Warna.peringatanMuda));
-    c.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromCenter(center: pusat, width: u * 0.03, height: u * 0.1), Radius.circular(u * 0.015)),
-        _cat(Warna.aksenTeks));
+    // Tulisan "Rp" di tengah koin (garis tegak saja terbaca sebagai tanda seru).
+    final rp = TextPainter(
+      text: TextSpan(
+          text: 'Rp',
+          style: TextStyle(color: Warna.aksenTeks, fontSize: u * 0.07, fontWeight: FontWeight.w900, height: 1)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    rp.paint(c, pusat - Offset(rp.width / 2, rp.height / 2));
+    rp.dispose();
   }
 
   @override

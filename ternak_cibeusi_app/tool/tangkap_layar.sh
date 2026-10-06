@@ -24,7 +24,9 @@ fi
 PAKET="io.github.umeem26.sikaya"
 KELUAR="$(cd "$(dirname "$0")/../.." && (pwd -W 2>/dev/null || pwd))/docs"
 mkdir -p "$KELUAR/$FOLDER"
-perangkat() { "$ADB" -s "$PERANGKAT" "$@"; }
+# stdin dari /dev/null: adb shell (terutama screenrecord di latar belakang) tidak boleh
+# ikut membaca keluaran tes yang dialirkan ke loop di bawah, atau permintaan host hilang.
+perangkat() { "$ADB" -s "$PERANGKAT" "$@" </dev/null; }
 
 demo() { perangkat shell am broadcast -a com.android.systemui.demo -e command "$@" >/dev/null; }
 

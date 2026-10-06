@@ -1165,7 +1165,13 @@ class _PilTab extends StatelessWidget {
           Icon(Icons.check_rounded, size: 20 * skalaIkon(context), color: warna),
           const SizedBox(width: Jarak.s4),
         ],
-        Flexible(child: Text(label, textAlign: TextAlign.center, style: gaya(context, terpilih))),
+        // Lebar = baris terpanjang: centang tetap menempel pada tulisan yang turun baris.
+        Flexible(
+          child: Text(label,
+              textAlign: TextAlign.center,
+              textWidthBasis: TextWidthBasis.longestLine,
+              style: gaya(context, terpilih)),
+        ),
       ]),
     );
   }

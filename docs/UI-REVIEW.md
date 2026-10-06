@@ -23,6 +23,9 @@ hasil akhir per layar. Data di semua gambar adalah data demo fiktif.
   [putaran 3](ui-review/putaran-3.png), [sesudah](ui-review/sesudah.png).
 - **Lanjutan (4 layar terlemah, maks. 2 putaran):** [lanjutan 1](ui-review/lanjutan-1.png),
   [lanjutan 2](ui-review/lanjutan-2.png). Lihat bagian "Lanjutan" di bawah.
+- **Penyesuaian visual dan UX (avatar, terkunci, onboarding, tab geser; maks. 2 putaran,
+  hanya layar yang berubah):** [tab putaran 1](ui-review/tab-putaran-1.png),
+  [tab putaran 2](ui-review/tab-putaran-2.png). Lihat bagian "Penyesuaian visual dan UX".
 - **Catatan alat:** layar emulator harus menyala dan tidak terkunci
   (`adb shell svc power stayon true`). Bila aplikasi diluncurkan saat layar tidur,
   permukaan splash bisa tersangkut di emulator dan semua foto berisi splash; reboot emulator.
@@ -146,7 +149,7 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 |---|---|
 | ![](ui-review/sebelum/lainnya.png) | ![](screenshots/lainnya.png) |
 
-- Putaran 1: kartu profil usaha (logo, nama, chip "Pemilik peternakan") seperti
+- Putaran 1: kartu profil usaha (logo, kini avatar inisial; nama, chip "Pemilik peternakan") seperti
   Pengaturan lama; menu dikelompokkan dalam satu kartu dengan ubin ikon; zona bahaya
   dalam kartu dengan ubin merah. Tidak ada temuan.
 - Putaran 3: chip "Pemilik peternakan" dua baris pada 2,0x kini bersudut 14.
@@ -196,6 +199,51 @@ ikon, nominal rata kanan). Dua putaran:
 
 Daftar periksa keempat layar: a/b/c/d lolos.
 
+## Penyesuaian visual dan UX
+
+Empat perubahan, difoto di emulator Pixel 9 (huruf 1,0x dan 2,0x, data demo fiktif
+dengan September sudah ditutup buku) lewat `integration_test/pratinjau_test.dart`, dan
+dibandingkan dengan acuan [`ref-lama/`](ref-lama/) (onboarding lama:
+[01-onboarding](ref-lama/01-onboarding.png); laporan lama:
+[07-laporan-labarugi](ref-lama/07-laporan-labarugi.png)). Dua putaran:
+[tab putaran 1](ui-review/tab-putaran-1.png), [tab putaran 2](ui-review/tab-putaran-2.png).
+
+| Layar | Sesudah |
+|---|---|
+| Onboarding 3 halaman | ![](screenshots/onboarding-1.png) ![](screenshots/onboarding-2.png) ![](screenshots/onboarding-3.png) |
+| Onboarding, huruf 2,0x | ![](ui-review/sesudah-onboarding-huruf-besar.png) |
+| Dicatat otomatis dan lembar alasan | ![](screenshots/dicatat-otomatis.png) ![](screenshots/lembar-otomatis.png) |
+| Periode ditutup (Catatan, lembar) | ![](screenshots/catatan-ditutup.png) ![](screenshots/lembar-ditutup.png) |
+| Laporan bertab | ![](screenshots/laporan-ringkasan.png) ![](screenshots/laporan-bertab.png) |
+| Laporan resmi tab terakhir, huruf 2,0x | ![](ui-review/sesudah-laporan-tab-huruf-besar.png) |
+| Inventaris bertab | ![](ui-review/sesudah-inventaris-bertab.png) |
+| Profil (Lainnya) | ![](screenshots/lainnya.png) |
+
+1. **Avatar profil.** Kartu profil Lainnya dan header Beranda memakai lingkaran berinisial
+   nama usaha (ikon orang bila nama kosong), bukan logo aplikasi. Logo tetap di splash, kepala
+   onboarding, dan ikon aplikasi.
+2. **Yang terkunci.** Tidak ada lagi gembok dan tulisan abu-abu. Penyusutan dan tutup buku di
+   kelompok "Dicatat otomatis" yang terlipat (ikon info, kalimat penjelas); kartunya rata biru
+   muda tanpa bayangan dan panah, beda dari kartu pilihan yang berbayang. Ketuk = lembar bawah
+   berisi alasan bahasa petani dan satu tombol pintas (tab Aset, Tutup buku di Lainnya, Catatan,
+   Laporan, atau form jual belum dibayar). Periode yang sudah ditutup: lencana "Ditutup" di
+   judul bulan Catatan, kop Laporan ringkasan dan resmi, menu Tutup buku; detail catatan yang
+   ditutup menampilkan panel info, bukan tombol Ubah/Hapus yang pasti ditolak.
+3. **Onboarding.** Tiga halaman pengenalan yang bisa digeser sebelum langkah nama usaha;
+   ilustrasi datar CustomPaint berwarna palet merek.
+4. **Tab geser.** Periode Laporan, empat laporan resmi, dan kelompok Inventaris kini TabBar yang
+   bisa digulir + TabBarView yang bisa digeser. Pil >= 48dp, terpilih biru bercentang, tepi
+   memudar bila ada tab di luar layar, tab terpilih tergulir ke tampilan.
+
+- Putaran 1, temuan: ikon status bar putih di atas latar terang onboarding (tidak terlihat);
+  garis tegak di koin ilustrasi terbaca sebagai tanda seru; isi pengenalan menumpuk di atas
+  dengan ruang kosong besar (1,0x) dan kalimat terpotong di atas titik halaman (2,0x); label tab
+  yang turun baris pada 2,0x membuat centang menjauh dari tulisannya.
+- Putaran 2: ikon status bar gelap di onboarding, koin bertulisan "Rp", isi pengenalan di
+  tengah dan ilustrasi lebih kecil pada huruf besar (kalimat utuh), lebar label tab mengikuti
+  baris terpanjang. Tidak ada temuan baru.
+- Daftar periksa: a/b/c/d lolos.
+
 ## Masih paling lemah secara visual
 
 1. **Catatan pada huruf 2,0x:** tetap ±1,5 catatan per layar; kata arah dan nominal hanya
@@ -206,3 +254,5 @@ Daftar periksa keempat layar: a/b/c/d lolos.
    dengan penjelasan panjang.
 4. **Teks bantuan isian** (mis. umur manfaat) menjorok 16dp mengikuti isi isian, tidak
    sejajar dengan label di atasnya.
+5. **Tab pada huruf 2,0x:** label panjang ("Posisi Keuangan", "Barang habis pakai") turun dua
+   baris sehingga bilah tab setinggi ±100dp; hanya 1-2 tab terlihat sekaligus.

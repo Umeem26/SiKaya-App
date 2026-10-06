@@ -14,7 +14,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ternak_cibeusi_app/accounting/models.dart';
 import 'package:ternak_cibeusi_app/accounting/repository.dart';
+import 'package:ternak_cibeusi_app/accounting/tx_form_spec.dart';
 import 'package:ternak_cibeusi_app/aset_data.dart';
 import 'package:ternak_cibeusi_app/beranda_page.dart';
 import 'package:ternak_cibeusi_app/database/database_helper.dart';
@@ -219,6 +221,7 @@ void main() {
     await keAtas(tester);
     await tester.tap(find.text('Laba Rugi'));
     await tenang(tester);
+    await foto(tester, 'laporan-bertab');
     await cekBaris(tester, 'Pendapatan penjualan', angkaResmi(31500000));
     await cekBaris(tester, 'Jumlah beban', angkaResmi(r.bebanTotal));
     await cekBaris(tester, 'LABA (RUGI) BERSIH', angkaResmi(d.untungRugi));
@@ -250,29 +253,46 @@ void main() {
     expect((await repo.loadReport(asOf: hariIni)).report.totalAset, asetSebelum); // D5
     expect(await repo.transactions(), hasLength(20)); // + entri tutup buku, tidak ada yang hilang
 
-    // --- 7. Catatan lama terkunci: ubah dan hapus ditolak ---
+    // --- 7. Catatan lama terkunci: lencana "Ditutup", panel info tanpa Ubah/Hapus; mesin tetap menolak ---
     await keTab(tester, 'Catat');
+    await gulirKe(tester, find.text('September 2026'));
+    final kepalaSep = find.ancestor(of: find.text('September 2026'), matching: find.byType(Wrap));
+    expect(find.descendant(of: kepalaSep, matching: find.byType(LencanaDitutup)), findsOneWidget);
+    await foto(tester, 'catatan-ditutup');
     await ketuk(tester, find.text('Masukkan uang pribadi ke usaha (modal)'));
     expect(find.byType(DetailCatatanPage), findsOneWidget);
-    await ketuk(tester, find.text('Ubah'));
-    await isi(tester, isianRupiah, '25000000');
-    await tester.tap(find.text('Simpan perubahan'));
-    await tunggu(tester, find.text('Tidak bisa disimpan'));
-    expect(find.textContaining('sudah ditutup buku'), findsOneWidget);
-    await tester.tap(find.text('Mengerti'));
+    await gulirKe(tester, find.text('Sudah ditutup buku'));
+    expect(find.text('Ubah'), findsNothing);
+    expect(find.text('Hapus'), findsNothing);
+    await ketuk(tester, find.text('Kenapa?'));
+    await tunggu(tester, find.text('Sudah ditutup buku sampai 30 September 2026'));
+    await foto(tester, 'lembar-ditutup');
+    await tester.tap(find.text('Lihat Tutup buku di Lainnya'));
     await tenang(tester);
-    await tester.pageBack();
-    await tenang(tester);
-    await ketuk(tester, find.text('Hapus'));
-    await tester.tap(find.widgetWithText(FilledButton, 'Hapus').last); // tombol di dialog
-    await tunggu(tester, find.text('Tidak bisa dihapus'));
-    await tester.tap(find.text('Mengerti'));
-    await tenang(tester);
-    await tester.pageBack();
-    await tenang(tester);
+    expect(find.byType(DetailCatatanPage), findsNothing);
+    expect(tester.widget<NavigasiBawah>(find.byType(NavigasiBawah)).terpilih, TabUtama.lainnya);
     final modal = (await repo.transactions()).where((t) => t.date == '2026-09-01' && t.amount == 20000000);
     expect(modal, hasLength(1), reason: 'catatan modal September tidak berubah');
+    await expectLater(repo.deleteTransaction(modal.single.id!), throwsA(isA<PeriodLockedException>()));
+    expect(await repo.transactions(), hasLength(20));
+
+    // --- 7b. Yang dicatat otomatis: kelompok terlipat, lembar alasan, tombol pintas ke tab Aset ---
+    await keTab(tester, 'Catat');
+    await tester.tap(find.text('Apa yang terjadi?').last);
+    await tenang(tester);
+    await tungguMuat(tester);
+    await ketuk(tester, find.text('Dicatat otomatis'));
+    final susut = txFormSpecs[TxType.penyusutan]!.label;
+    await gulirKe(tester, find.text(susut));
+    await foto(tester, 'dicatat-otomatis');
+    await ketuk(tester, find.text(susut));
+    await tunggu(tester, find.text('Penyusutan dihitung otomatis'));
+    await foto(tester, 'lembar-otomatis');
+    await tester.tap(find.text('Lihat di tab Aset'));
+    await tenang(tester);
+    await tungguMuat(tester);
     expect(find.byType(FormFinancePage), findsNothing);
+    expect(tester.widget<NavigasiBawah>(find.byType(NavigasiBawah)).terpilih, TabUtama.aset);
 
     // --- 8. Ekspor PDF: file terbentuk (lembar bagikan OS tidak dibuka) ---
     await keTab(tester, 'Laporan');
