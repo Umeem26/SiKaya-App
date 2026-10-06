@@ -56,7 +56,22 @@ void main() {
     ));
     await tenang(tester);
 
-    // --- 1. Onboarding ---
+    // --- 1. Onboarding: pengenalan 3 halaman (Lanjut, geser, Mulai), lalu nama dan cadangan ---
+    for (var i = 0; i < halamanIntro.length; i++) {
+      await tunggu(tester, find.text(halamanIntro[i].judul));
+      expect(find.text(halamanIntro[i].isi), findsOneWidget);
+      await foto(tester, 'onboarding-${i + 1}');
+      if (i == 0) {
+        await tester.tap(find.text('Lanjut'));
+      } else if (i == 1) {
+        await tester.fling(find.byType(PageView), const Offset(-300, 0), 1000);
+      } else {
+        expect(find.text('Lewati'), findsNothing);
+        await tester.tap(find.text('Mulai'));
+      }
+      await tenang(tester);
+    }
+    expect(prefs.getBool(kunciIntroDilihat), isTrue);
     expect(find.text('Halo, Juragan!'), findsOneWidget);
     await tester.tap(find.text('Lanjut'));
     await tenang(tester);
@@ -275,11 +290,13 @@ void main() {
     await tester.pageBack();
     await tenang(tester);
 
-    // --- 9. Hapus semua data -> kembali ke onboarding ---
+    // --- 9. Hapus semua data -> kembali ke onboarding (pengenalan tampil lagi: pengaturan dikosongkan) ---
     await keTab(tester, 'Lainnya');
     await ketuk(tester, find.text('Hapus semua data'));
     expect(find.text('Hapus semua data?'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Hapus semuanya'));
+    await tunggu(tester, find.text(halamanIntro.first.judul));
+    await tester.tap(find.text('Lewati'));
     await tunggu(tester, find.text('Halo, Juragan!'));
     expect(find.byType(HalamanUtama), findsNothing);
     expect(await repo.transactions(), isEmpty);
