@@ -2,7 +2,7 @@
 // AccountingRepository (sumber yang sama dengan laporan): nilai buku dari
 // asetTercatat mesin, riwayat penyusutan dari depreciationSchedule mesin, nilai
 // persediaan dari Report mesin. Inventaris (tabel assets) tidak dipakai di sini
-// karena tidak masuk laporan (docs/ref-lama/NOTES.md, "Peta data aset").
+// karena tidak masuk laporan (docs/engineering/UI-LAMA-NOTES.md, "Peta data aset").
 // Tanpa Flutter: bisa dites sebagai fungsi murni.
 import 'accounting/calk.dart' show asetTercatat;
 import 'accounting/engine.dart' show depreciationSchedule;

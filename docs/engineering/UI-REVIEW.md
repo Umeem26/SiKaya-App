@@ -6,12 +6,13 @@ hasil akhir per layar. Data di semua gambar adalah data demo fiktif.
 
 ## Cara meninjau
 
-- **Acuan:** UI lama (commit `d1e4fc5^`) dibangun ulang dan difoto di emulator:
-  [`ref-lama/`](ref-lama/), ringkasan bahasa visualnya di [`ref-lama/NOTES.md`](ref-lama/NOTES.md).
+- **Acuan:** UI lama (commit `d1e4fc5^`) dibangun ulang dan difoto di emulator; ringkasan
+  bahasa visualnya di [`UI-LAMA-NOTES.md`](UI-LAMA-NOTES.md). Foto acuan tidak lagi disimpan
+  di repo (ada di riwayat git, commit `5ed5777`, folder `docs/ref-lama/`).
 - **Alat:** `bash tool/tangkap_layar.sh emulator-5554 integration_test/pratinjau_test.dart <folder>`
   mengisi data demo lalu memotret semua layar utama pada huruf 1,0x dan 2,0x.
   Foto akhir untuk README: `bash tool/tangkap_layar.sh emulator-5554` (integration test
-  satu hari penggunaan) ke [`screenshots/`](screenshots/).
+  satu hari penggunaan) ke [`screenshots/`](../screenshots/).
 - **Perangkat:** emulator Pixel 9 (Android 15, 411dp). Splash juga di emulator Android 11.
 - **Daftar periksa tiap layar:**
   (a) tidak terlihat seperti widget bawaan polos;
@@ -19,13 +20,13 @@ hasil akhir per layar. Data di semua gambar adalah data demo fiktif.
   (c) tidak ada elemen terpotong atau terlalu padat (juga pada huruf 2,0x);
   (d) selaras dengan logo (biru panah, oranye koin).
 - **Batas:** maksimal 3 putaran per layar. Lembar kontak tiap putaran:
-  [putaran 1](ui-review/putaran-1.png), [putaran 2](ui-review/putaran-2.png),
-  [putaran 3](ui-review/putaran-3.png), [sesudah](ui-review/sesudah.png).
-- **Lanjutan (4 layar terlemah, maks. 2 putaran):** [lanjutan 1](ui-review/lanjutan-1.png),
-  [lanjutan 2](ui-review/lanjutan-2.png). Lihat bagian "Lanjutan" di bawah.
+  [putaran 1](../ui-review/putaran-1.png), [putaran 2](../ui-review/putaran-2.png),
+  [putaran 3](../ui-review/putaran-3.png), [sesudah](../ui-review/sesudah.png).
+- **Lanjutan (4 layar terlemah, maks. 2 putaran):** [lanjutan 1](../ui-review/lanjutan-1.png),
+  [lanjutan 2](../ui-review/lanjutan-2.png). Lihat bagian "Lanjutan" di bawah.
 - **Penyesuaian visual dan UX (avatar, terkunci, onboarding, tab geser; maks. 2 putaran,
-  hanya layar yang berubah):** [tab putaran 1](ui-review/tab-putaran-1.png),
-  [tab putaran 2](ui-review/tab-putaran-2.png). Lihat bagian "Penyesuaian visual dan UX".
+  hanya layar yang berubah):** [tab putaran 1](../ui-review/tab-putaran-1.png),
+  [tab putaran 2](../ui-review/tab-putaran-2.png). Lihat bagian "Penyesuaian visual dan UX".
 - **Catatan alat:** layar emulator harus menyala dan tidak terkunci
   (`adb shell svc power stayon true`). Bila aplikasi diluncurkan saat layar tidur,
   permukaan splash bisa tersangkut di emulator dan semua foto berisi splash; reboot emulator.
@@ -50,7 +51,7 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 ### Splash
 | Sebelum | Sesudah |
 |---|---|
-| ![](ui-review/sebelum/splash-native.png) | ![](ui-review/splash/android15-native.png) ![](ui-review/splash/android15-flutter.png) |
+| ![](../ui-review/sebelum/splash-native.png) | ![](../screenshots/splash.png) |
 | Splash native putih dengan logo kecil, lalu splash Flutter biru dengan indikator putar: kedip putih ke biru, 2 detik. | Latar biru logo, lingkaran logo 160dp utuh di tengah, lalu logo naik halus dan tagline muncul (maks. 1,2 detik), pudar ke aplikasi. |
 
 - Putaran 1 (Android 15): animasi pudar splash sistem menutupi splash Flutter.
@@ -60,14 +61,14 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 - Putaran 3 (Android 11): logo tampak ganda sesaat. Penyebab: jendela splash tidak
   digambar di balik bilah sistem (titik tengah bergeser) dan sistem memudarkan jendela
   splash. Perbaikan: bilah sistem biru, latar sampai ke balik bilah, bingkai pertama
-  ditahan 400 ms. Urutan bingkai: [Android 15](ui-review/splash/android15-urutan.png),
-  [Android 11](ui-review/splash/android11-urutan.png). Tidak ada bingkai putih.
+  ditahan 400 ms. Urutan bingkai Android 15 dan 11 (di riwayat git,
+  `docs/ui-review/splash/`): tidak ada bingkai putih.
 - Daftar periksa: a/b/c/d lolos.
 
 ### Beranda
 | Sebelum | Sesudah |
 |---|---|
-| ![](ui-review/sebelum/beranda.png) | ![](screenshots/beranda.png) ![](screenshots/beranda-aset.png) |
+| ![](../ui-review/sebelum/beranda.png) | ![](../screenshots/beranda.png) ![](../screenshots/beranda-aset.png) |
 
 - Putaran 1: header merek dengan sapaan dan nama usaha, kartu Untung/Rugi bergradien
   menumpuk ke header (gaya UI lama), kisi masuk/keluar. Temuan: label "Untung"
@@ -80,13 +81,13 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 - Putaran 3: ikon tombol/chip diperbesar mengikuti huruf.
 - Bagian baru: "Aset & stok" (nilai buku kandang & peralatan, nilai stok, jumlah
   ternak, peringatan stok menipis), dari data mesin yang sama dengan Laporan.
-- Huruf 2,0x: ![](screenshots/beranda-huruf-besar.png)
+- Huruf 2,0x: ![](../screenshots/beranda-huruf-besar.png)
 - Daftar periksa: a/b/c/d lolos.
 
 ### Catat ("Apa yang terjadi?" dan form)
 | Sebelum | Sesudah |
 |---|---|
-| ![](ui-review/sebelum/apa-yang-terjadi.png) ![](ui-review/sebelum/form-jual.png) | ![](screenshots/apa-yang-terjadi.png) ![](screenshots/form-jual.png) |
+| ![](../ui-review/sebelum/apa-yang-terjadi.png) ![](../ui-review/sebelum/form-jual.png) | ![](../screenshots/apa-yang-terjadi.png) ![](../screenshots/form-jual.png) |
 
 - Putaran 1: kartu pilihan bergaris biru tebal diganti kartu berbayang dengan ubin
   ikon per jenis kejadian (hijau = uang masuk, oranye tua = keluar, biru = lainnya).
@@ -98,7 +99,7 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 ### Catatan (riwayat)
 | Sebelum | Sesudah |
 |---|---|
-| ![](ui-review/sebelum/catatan.png) | ![](screenshots/catatan.png) |
+| ![](../ui-review/sebelum/catatan.png) | ![](../screenshots/catatan.png) |
 
 - Putaran 1: baris catatan dengan ubin ikon jenis, nominal rata kanan tabular di samping
   judul (turun ke bawah, tetap rata kanan, bila huruf besar), kepala bulan dengan jumlah
@@ -109,19 +110,19 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 ### Aset (baru)
 | Sebelum | Sesudah |
 |---|---|
-| Tidak ada tab Aset; inventaris di menu Lainnya, tidak terhubung dengan laporan. Pembanding UI lama: ![](ref-lama/03-aset.png) | ![](screenshots/aset.png) ![](screenshots/detail-aset.png) ![](ui-review/sesudah-riwayat-penyusutan.png) |
+| Tidak ada tab Aset; inventaris di menu Lainnya, tidak terhubung dengan laporan. Pembanding UI lama: foto `03-aset` di acuan. | ![](../screenshots/aset.png) ![](../screenshots/detail-aset.png) ![](../ui-review/sesudah-riwayat-penyusutan.png) |
 
 - Putaran 1: temuan bug semantik (nilai bilah penyusutan bukan angka) dan ikon jam
   untuk tanah. Diperbaiki (nilai angka, ikon lahan).
 - Putaran 2: keterangan kartu utama dipersingkat untuk huruf 2,0x. Tidak ada temuan baru.
 - Putaran 3: chip dua baris diberi sudut 14 (bukan pil) agar tetap rapi.
-- Huruf 2,0x: ![](ui-review/sesudah-aset-huruf-besar.png)
+- Huruf 2,0x: ![](../ui-review/sesudah-aset-huruf-besar.png)
 - Daftar periksa: a/b/c/d lolos.
 
 ### Laporan ringkasan
 | Sebelum | Sesudah |
 |---|---|
-| ![](ui-review/sebelum/laporan-ringkasan.png) | ![](screenshots/laporan-ringkasan.png) |
+| ![](../ui-review/sebelum/laporan-ringkasan.png) | ![](../screenshots/laporan-ringkasan.png) |
 
 - Putaran 1: tombol waktu terpilih lebih tinggi dari yang lain; angka utama tidak
   menonjol; rentang tanggal berupa teks lepas.
@@ -133,21 +134,21 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 ### Laporan resmi (dan PDF)
 | Sebelum | Sesudah |
 |---|---|
-| ![](ui-review/sebelum/laporan-posisi-keuangan.png) ![](ui-review/sebelum/calk.png) | ![](screenshots/laporan-posisi-keuangan.png) ![](ui-review/sesudah-laporan-laba-rugi.png) ![](screenshots/calk.png) |
+| ![](../ui-review/sebelum/laporan-posisi-keuangan.png) ![](../ui-review/sebelum/calk.png) | ![](../screenshots/laporan-posisi-keuangan.png) ![](../ui-review/sesudah-laporan-laba-rugi.png) ![](../screenshots/calk.png) |
 
 - Putaran 1 (belum diubah): judul tanpa kop, seksi hanya teks tebal.
 - Putaran 2: kertas laporan dengan kop berbingkai (nama peternakan, judul, periode, rata
   tengah), band judul berlatar biru muda, subtotal bergaris atas, total bergaris ganda,
   angka rata kanan. Temuan alat: pratinjau macet karena tombol "Laba Rugi" di luar layar
   pada 2,0x (skrip pratinjau diperbaiki, bukan layar).
-- PDF mengikuti tata letak yang sama: [Posisi Keuangan](ui-review/pdf/posisi-keuangan.png),
-  [Laba Rugi](ui-review/pdf/laba-rugi.png).
+- PDF mengikuti tata letak yang sama: [Posisi Keuangan](../ui-review/pdf/posisi-keuangan.png),
+  [Laba Rugi](../ui-review/pdf/laba-rugi.png).
 - Daftar periksa: a/b/c/d lolos.
 
 ### Lainnya
 | Sebelum | Sesudah |
 |---|---|
-| ![](ui-review/sebelum/lainnya.png) | ![](screenshots/lainnya.png) |
+| ![](../ui-review/sebelum/lainnya.png) | ![](../screenshots/lainnya.png) |
 
 - Putaran 1: kartu profil usaha (logo, kini avatar inisial; nama, chip "Pemilik peternakan") seperti
   Pengaturan lama; menu dikelompokkan dalam satu kartu dengan ubin ikon; zona bahaya
@@ -158,17 +159,17 @@ Kontras: semua pasangan warna baru terdaftar di `pasanganKontras` dan diuji >= 4
 ## Lanjutan: empat layar terlemah
 
 Empat layar dari daftar "masih lemah" sebelumnya diperbaiki, lalu difoto di emulator
-Pixel 9 (huruf 1,0x dan 2,0x) dan dibandingkan dengan acuan [`ref-lama/`](ref-lama/)
+Pixel 9 (huruf 1,0x dan 2,0x) dan dibandingkan dengan acuan UI lama
 (form lama: isian terisi abu muda bersudut bulat, label di atas; daftar keuangan: ubin
 ikon, nominal rata kanan). Dua putaran:
-[lanjutan 1](ui-review/lanjutan-1.png), [lanjutan 2](ui-review/lanjutan-2.png).
+[lanjutan 1](../ui-review/lanjutan-1.png), [lanjutan 2](../ui-review/lanjutan-2.png).
 
 | Layar | Sesudah |
 |---|---|
-| Catatan, huruf 2,0x | ![](ui-review/sesudah-catatan-huruf-besar.png) |
-| Form Catat (beli aset) | ![](ui-review/sesudah-form-aset.png) |
-| Beranda, huruf 2,0x | ![](screenshots/beranda-huruf-besar.png) |
-| Detail aset tanpa foto | ![](ui-review/sesudah-detail-aset-tanpa-foto.png) |
+| Catatan, huruf 2,0x | ![](../ui-review/sesudah-catatan-huruf-besar.png) |
+| Form Catat (beli aset) | ![](../ui-review/sesudah-form-aset.png) |
+| Beranda, huruf 2,0x | ![](../screenshots/beranda-huruf-besar.png) |
+| Detail aset tanpa foto | ![](../ui-review/sesudah-detail-aset-tanpa-foto.png) |
 
 1. **Catatan (riwayat).** Mulai huruf 1,3x baris bertumpuk: judul maks. 2 baris dengan
    "...", nominal di baris sendiri di bawah judul, rata kanan, figur tabular (pembaca
@@ -203,21 +204,19 @@ Daftar periksa keempat layar: a/b/c/d lolos.
 
 Empat perubahan, difoto di emulator Pixel 9 (huruf 1,0x dan 2,0x, data demo fiktif
 dengan September sudah ditutup buku) lewat `integration_test/pratinjau_test.dart`, dan
-dibandingkan dengan acuan [`ref-lama/`](ref-lama/) (onboarding lama:
-[01-onboarding](ref-lama/01-onboarding.png); laporan lama:
-[07-laporan-labarugi](ref-lama/07-laporan-labarugi.png)). Dua putaran:
-[tab putaran 1](ui-review/tab-putaran-1.png), [tab putaran 2](ui-review/tab-putaran-2.png).
+dibandingkan dengan acuan UI lama (foto `01-onboarding` dan `07-laporan-labarugi`). Dua putaran:
+[tab putaran 1](../ui-review/tab-putaran-1.png), [tab putaran 2](../ui-review/tab-putaran-2.png).
 
 | Layar | Sesudah |
 |---|---|
-| Onboarding 3 halaman | ![](screenshots/onboarding-1.png) ![](screenshots/onboarding-2.png) ![](screenshots/onboarding-3.png) |
-| Onboarding, huruf 2,0x | ![](ui-review/sesudah-onboarding-huruf-besar.png) |
-| Dicatat otomatis dan lembar alasan | ![](screenshots/dicatat-otomatis.png) ![](screenshots/lembar-otomatis.png) |
-| Periode ditutup (Catatan, lembar) | ![](screenshots/catatan-ditutup.png) ![](screenshots/lembar-ditutup.png) |
-| Laporan bertab | ![](screenshots/laporan-ringkasan.png) ![](screenshots/laporan-bertab.png) |
-| Laporan resmi tab terakhir, huruf 2,0x | ![](ui-review/sesudah-laporan-tab-huruf-besar.png) |
-| Inventaris bertab | ![](ui-review/sesudah-inventaris-bertab.png) |
-| Profil (Lainnya) | ![](screenshots/lainnya.png) |
+| Onboarding 3 halaman | ![](../screenshots/onboarding-1.png) ![](../screenshots/onboarding-2.png) ![](../screenshots/onboarding-3.png) |
+| Onboarding, huruf 2,0x | ![](../ui-review/sesudah-onboarding-huruf-besar.png) |
+| Dicatat otomatis dan lembar alasan | ![](../screenshots/dicatat-otomatis.png) ![](../screenshots/lembar-otomatis.png) |
+| Periode ditutup (Catatan, lembar) | ![](../screenshots/catatan-ditutup.png) ![](../screenshots/lembar-ditutup.png) |
+| Laporan bertab | ![](../screenshots/laporan-ringkasan.png) ![](../screenshots/laporan-bertab.png) |
+| Laporan resmi tab terakhir, huruf 2,0x | ![](../ui-review/sesudah-laporan-tab-huruf-besar.png) |
+| Inventaris bertab | ![](../ui-review/sesudah-inventaris-bertab.png) |
+| Profil (Lainnya) | ![](../screenshots/lainnya.png) |
 
 1. **Avatar profil.** Kartu profil Lainnya dan header Beranda memakai lingkaran berinisial
    nama usaha (ikon orang bila nama kosong), bukan logo aplikasi. Logo tetap di splash, kepala

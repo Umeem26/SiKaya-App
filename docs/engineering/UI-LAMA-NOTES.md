@@ -1,5 +1,8 @@
 # Acuan visual UI lama (commit a18a534, sebelum d1e4fc5)
 
+> Foto acuan yang disebut di bawah tidak lagi disimpan di repo; ada di riwayat git
+> (commit `5ed5777`, folder `docs/ref-lama/`).
+
 Dibangun dari `git worktree` pada `d1e4fc5^`, dijalankan di emulator Pixel 9 (Android 15),
 diisi 1 penjualan dan 1 data ternak. Tangkapan layar di folder ini:
 

@@ -2,7 +2,7 @@
 // Semua angka dari AccountingRepository.loadReport (satu sumber kebenaran);
 // layar ini tidak menghitung akuntansi sendiri. Ringkasan aset dari DataAset
 // (aset_data.dart), sumber yang sama dengan tab Aset dan Laporan.
-// Tampilan mengikuti UI lama (docs/ref-lama): header biru melengkung dengan
+// Tampilan mengikuti UI lama (docs/engineering/UI-LAMA-NOTES.md): header biru melengkung dengan
 // sapaan dan nama usaha, kartu utama bergradien yang menumpuk ke header.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

@@ -1,6 +1,6 @@
 // Tema terang SiKaya (UI-PLAN.md bagian 1-2). Ukuran huruf hanya di sini dan
 // selalu dikalikan pengaturan font HP (textScaler tidak dikunci).
-// Bahasa visual mengikuti UI lama (docs/ref-lama/NOTES.md): app bar biru bersudut
+// Bahasa visual mengikuti UI lama (docs/engineering/UI-LAMA-NOTES.md): app bar biru bersudut
 // bawah membulat, kartu putih tanpa garis tepi dengan bayangan biru tipis, tombol
 // kedua berisi biru muda (bukan garis tepi), sudut kartu/tombol 16.
 import 'package:flutter/material.dart';

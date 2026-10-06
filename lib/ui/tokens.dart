@@ -1,7 +1,7 @@
 // Token warna SiKaya (UI-PLAN.md bagian 2). Diturunkan dari logo
 // assets/icon_ayam.png: biru panah dan oranye koin, digelapkan agar teks
 // kontras minimal 4,5:1 di layar luar ruangan. Tema terang saja.
-// Nuansa mengikuti UI lama (docs/ref-lama): latar biru-abu sejuk, header dan
+// Nuansa mengikuti UI lama (docs/engineering/UI-LAMA-NOTES.md): latar biru-abu sejuk, header dan
 // kartu utama bergradien biru, kartu putih berbayang tipis tanpa garis tepi.
 import 'dart:math' as math;
 
