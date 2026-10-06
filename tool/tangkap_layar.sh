@@ -6,11 +6,11 @@
 # perintahnya lewat adb (screencap, font_scale, screenrecord) dan menjawab dengan
 # membuat file files/foto_ok_<id> di folder aplikasi (adb shell run-as).
 #
-# Pemakaian (dari folder aplikasi Flutter, emulator sudah menyala):
+# Pemakaian (dari akar repo, emulator sudah menyala):
 #   bash tool/tangkap_layar.sh [device-id] [file-tes] [folder-hasil]
-# Bawaan: integration_test/satu_hari_test.dart -> ../docs/screenshots/*.png dan
-# ../docs/demo-flow.mp4. Loop kualitas UI: file-tes integration_test/pratinjau_test.dart
-# dan folder-hasil mis. ui-review/putaran-1 (relatif terhadap ../docs).
+# Bawaan: integration_test/satu_hari_test.dart -> docs/screenshots/*.png dan
+# docs/demo-flow.mp4. Loop kualitas UI: file-tes integration_test/pratinjau_test.dart
+# dan folder-hasil mis. ui-review/putaran-1 (relatif terhadap docs/).
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 # Git Bash: jangan ubah /sdcard/... jadi path Windows
 
@@ -22,7 +22,7 @@ if ! command -v "$ADB" >/dev/null 2>&1 && [ -n "${LOCALAPPDATA:-}" ]; then
   ADB="$LOCALAPPDATA/Android/sdk/platform-tools/adb.exe"
 fi
 PAKET="io.github.umeem26.sikaya"
-KELUAR="$(cd "$(dirname "$0")/../.." && (pwd -W 2>/dev/null || pwd))/docs"
+KELUAR="$(cd "$(dirname "$0")/.." && (pwd -W 2>/dev/null || pwd))/docs"
 mkdir -p "$KELUAR/$FOLDER"
 # stdin dari /dev/null: adb shell (terutama screenrecord di latar belakang) tidak boleh
 # ikut membaca keluaran tes yang dialirkan ke loop di bawah, atau permintaan host hilang.

@@ -9,9 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ternak_cibeusi_app
     steps:
       - uses: actions/checkout@v4
 
@@ -24,7 +21,6 @@ jobs:
 
       # Tes DB memakai sqflite_common_ffi, yang memuat libsqlite3 dari sistem.
       - run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
-        working-directory: .
 
       - run: flutter pub get
       - run: flutter analyze

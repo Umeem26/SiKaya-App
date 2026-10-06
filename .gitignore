@@ -15,10 +15,8 @@
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Setelan lokal VS Code (tidak ada yang perlu dibagikan).
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -46,3 +44,6 @@ lib/generated_plugin_registrant.dart
 key.properties
 *.jks
 *.keystore
+
+# Rilis lokal (APK yang ditandatangani disalin ke sini, tidak di-commit).
+/build/release-out/
