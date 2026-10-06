@@ -1,6 +1,8 @@
 // Komponen bersama SiKaya (UI-PLAN.md bagian 4). Aturan: area sentuh >= 48dp,
 // ikon selalu disertai tulisan, tidak ada ukuran huruf tetap (pakai TextTheme),
 // tidak ada Row kaku yang bisa overflow saat huruf diperbesar.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -1022,6 +1024,150 @@ class PilihanTombol<T> extends StatelessWidget {
         Text(errorText!, style: t.bodySmall!.copyWith(color: Warna.error)),
       ],
     ]);
+  }
+}
+
+// --- Tab geser ---
+
+/// Tab untuk beberapa bagian setara (periode laporan, jenis laporan resmi,
+/// kelompok inventaris): TabBar yang bisa digulir; pasangannya TabBarView yang
+/// bisa digeser dengan [controller] yang sama. Tab terpilih tergulir ke tampilan
+/// (bawaan TabBar). Bila ada tab di luar layar, tepi itu memudar sebagai petunjuk.
+/// Tab berbentuk pil setinggi >= 48dp: terpilih biru bercentang (arti tidak hanya
+/// lewat warna), lainnya biru muda; ikut berganti saat digeser.
+/// Bukan untuk langkah form, navigasi bawah, atau dialog.
+class TabGeser extends StatefulWidget {
+  const TabGeser({super.key, required this.controller, required this.label, this.onTap});
+  final TabController controller;
+  final List<String> label;
+  final ValueChanged<int>? onTap;
+
+  @override
+  State<TabGeser> createState() => TabGeserState();
+}
+
+class TabGeserState extends State<TabGeser> {
+  /// Ada tab tersembunyi di kiri/kanan (tepi memudar).
+  bool _kiri = false, _kanan = false;
+
+  @visibleForTesting
+  ({bool kiri, bool kanan}) get pudar => (kiri: _kiri, kanan: _kanan);
+
+  bool _ukur(Notification n) {
+    final m = switch (n) {
+      ScrollNotification(:final metrics) => metrics,
+      ScrollMetricsNotification(:final metrics) => metrics,
+      _ => null,
+    };
+    if (m == null || m.axis != Axis.horizontal) return false;
+    final kiri = m.pixels > 1, kanan = m.pixels < m.maxScrollExtent - 1;
+    if (kiri != _kiri || kanan != _kanan) {
+      // Notifikasi ukuran datang sesudah tata letak; setState aman di bingkai berikutnya.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _kiri = kiri;
+            _kanan = kanan;
+          });
+        }
+      });
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const pudar = 32.0;
+    final animasi = widget.controller.animation!;
+    return ColoredBox(
+      color: Warna.latar,
+      child: NotificationListener<Notification>(
+        onNotification: _ukur,
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (r) => LinearGradient(
+            colors: [
+              _kiri ? const Color(0x00000000) : const Color(0xFF000000),
+              const Color(0xFF000000),
+              const Color(0xFF000000),
+              _kanan ? const Color(0x00000000) : const Color(0xFF000000),
+            ],
+            stops: [0, pudar / r.width, 1 - pudar / r.width, 1],
+          ).createShader(r),
+          child: LayoutBuilder(builder: (context, c) {
+            // Satu tab paling lebar 85% layar: label panjang (huruf besar) turun baris,
+            // tidak terpotong. Semua pil setinggi pil tertinggi agar sebaris rapi.
+            final lebarMaks = (c.maxWidth - 2 * Jarak.s12) * 0.85;
+            final lebarTeks = lebarMaks - _PilTab.ruangDatar(context);
+            var tinggi = tinggiSentuh;
+            for (final l in widget.label) {
+              final ukur = TextPainter(
+                text: TextSpan(text: l, style: _PilTab.gaya(context, true)),
+                textDirection: Directionality.of(context),
+                textScaler: MediaQuery.textScalerOf(context),
+              )..layout(maxWidth: lebarTeks);
+              tinggi = math.max(tinggi, ukur.height + 2 * Jarak.s8);
+              ukur.dispose();
+            }
+            return TabBar(
+              controller: widget.controller,
+              onTap: widget.onTap,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: Jarak.s12, vertical: Jarak.s8),
+              labelPadding: const EdgeInsets.symmetric(horizontal: Jarak.s4),
+              indicator: const BoxDecoration(), // pil tab sendiri yang menandai pilihan
+              dividerHeight: 0,
+              splashBorderRadius: BorderRadius.circular(Sudut.kartu),
+              tabs: [
+                for (var i = 0; i < widget.label.length; i++)
+                  AnimatedBuilder(
+                    animation: animasi,
+                    builder: (context, _) => _PilTab(widget.label[i],
+                        terpilih: animasi.value.round() == i, tinggi: tinggi, lebarMaks: lebarMaks),
+                  ),
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+}
+
+class _PilTab extends StatelessWidget {
+  const _PilTab(this.label, {required this.terpilih, required this.tinggi, required this.lebarMaks});
+  final String label;
+  final bool terpilih;
+  final double tinggi;
+  final double lebarMaks;
+
+  static TextStyle gaya(BuildContext context, bool terpilih) => Theme.of(context)
+      .textTheme
+      .labelLarge!
+      .copyWith(color: terpilih ? Warna.putih : Warna.primer, fontWeight: terpilih ? FontWeight.w800 : FontWeight.w700);
+
+  /// Lebar di luar teks: padding kiri-kanan + ikon centang dan jaraknya.
+  static double ruangDatar(BuildContext context) => 2 * Jarak.s16 + 20 * skalaIkon(context) + Jarak.s4;
+
+  @override
+  Widget build(BuildContext context) {
+    final warna = terpilih ? Warna.putih : Warna.primer;
+    return Container(
+      constraints: BoxConstraints(minHeight: tinggi, minWidth: tinggiSentuh, maxWidth: lebarMaks),
+      padding: const EdgeInsets.symmetric(horizontal: Jarak.s16, vertical: Jarak.s8),
+      decoration: BoxDecoration(
+        color: terpilih ? Warna.primer : Warna.primerMuda,
+        borderRadius: BorderRadius.circular(Sudut.kartu),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (terpilih) ...[
+          Icon(Icons.check_rounded, size: 20 * skalaIkon(context), color: warna),
+          const SizedBox(width: Jarak.s4),
+        ],
+        Flexible(child: Text(label, textAlign: TextAlign.center, style: gaya(context, terpilih))),
+      ]),
+    );
   }
 }
 

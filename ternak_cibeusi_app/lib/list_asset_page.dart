@@ -1,5 +1,5 @@
-// Inventaris: daftar barang per kelompok (UI-PLAN.md 3.6). Pilihan kelompok berupa
-// tombol yang semuanya terlihat; ketuk barang untuk detail (Ubah/Hapus).
+// Inventaris: daftar barang per kelompok (UI-PLAN.md 3.6). Kelompok berupa tab
+// geser (TabGeser + TabBarView); ketuk barang untuk detail (Ubah/Hapus).
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -19,10 +19,18 @@ class ListAssetPage extends StatefulWidget {
   State<ListAssetPage> createState() => _ListAssetPageState();
 }
 
-class _ListAssetPageState extends State<ListAssetPage> {
+class _ListAssetPageState extends State<ListAssetPage> with SingleTickerProviderStateMixin {
   late final SumberInventaris _sumber = widget.sumber ?? SumberInventaris.instance;
   late Future<List<AssetModel>> _data = _sumber.semua();
-  String _kelompok = kelompokInventaris.first.nilai;
+  late final TabController _tab = TabController(length: kelompokInventaris.length, vsync: this);
+
+  String get _kelompok => kelompokInventaris[_tab.index].nilai;
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
 
   void _muatUlang() {
     setState(() {
@@ -72,23 +80,29 @@ class _ListAssetPageState extends State<ListAssetPage> {
   }
 
   Widget _daftar(List<AssetModel> semua) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      TabGeser(controller: _tab, label: [
+        for (final k in kelompokInventaris) '${k.label} (${semua.where((a) => a.kategori == k.nilai).length})',
+      ]),
+      Expanded(
+        child: TabBarView(
+          controller: _tab,
+          children: [for (final k in kelompokInventaris) _kelompokBarang(k, semua)],
+        ),
+      ),
+    ]);
+  }
+
+  Widget _kelompokBarang(KelompokInventaris k, List<AssetModel> semua) {
     final t = Theme.of(context).textTheme;
-    final barang = semua.where((a) => a.kategori == _kelompok).toList();
+    final barang = semua.where((a) => a.kategori == k.nilai).toList();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      key: PageStorageKey('inventaris-${k.nilai}'),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
         Text('Catatan barang yang dimiliki. Tidak masuk laporan keuangan; untuk mencatat pembelian '
             'pakai "Apa yang terjadi?".',
             style: t.bodySmall!.copyWith(color: Warna.teksSekunder)),
-        const SizedBox(height: 12),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          for (final k in kelompokInventaris)
-            TombolPilihan(
-              label: '${k.label} (${semua.where((a) => a.kategori == k.nilai).length})',
-              terpilih: k.nilai == _kelompok,
-              onPressed: () => setState(() => _kelompok = k.nilai),
-            ),
-        ]),
         const SizedBox(height: 16),
         if (barang.isEmpty)
           Text('Belum ada barang di kelompok ini. Tekan "Tambah barang" di bawah.', style: t.bodyLarge),

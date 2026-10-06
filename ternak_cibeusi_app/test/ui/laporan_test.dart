@@ -54,8 +54,10 @@ Future<int> nilaiBaris(WidgetTester tester, String label) async {
   return angka(tester.widget<BarisLaporan>(b.first).nilai);
 }
 
+Finder tab(String judul) => find.descendant(of: find.byType(TabGeser), matching: find.text(judul));
+
 Future<void> bukaTab(WidgetTester tester, String judul) async {
-  await ketuk(tester, find.descendant(of: find.byType(TombolPilihan), matching: find.text(judul)));
+  await ketuk(tester, tab(judul));
 }
 
 void main() {
@@ -64,7 +66,6 @@ void main() {
       final repo = await repoLaporan();
       await pasangHalaman(tester, ReportPage(repo: repo, hariIni: hariIni), skala: skala);
       await semuaTerlihat(tester, [
-        'Pilih waktu',
         'Bulan ini', 'Bulan lalu', 'Tahun ini', 'Pilih tanggal',
         '1 Februari 2026 s.d. 15 Februari 2026',
         '1 catatan perlu dicek',
@@ -105,13 +106,12 @@ void main() {
         'Perubahan Ekuitas': ['Laporan Perubahan Ekuitas', 'Modal disetor awal', 'Saldo laba awal',
           'Saldo laba akhir', 'JUMLAH EKUITAS'],
       };
-      for (final MapEntry(key: tab, value: teks) in isi.entries) {
-        await bukaTab(tester, tab);
-        final tombol = find.ancestor(
-            of: find.descendant(of: find.byType(TombolPilihan), matching: find.text(tab)),
-            matching: find.byWidgetPredicate((w) => w is ButtonStyleButton));
-        expect(tester.getSize(tombol).height, greaterThanOrEqualTo(48), reason: 'pilihan $tab');
-        dalamLebar(tester, tombol);
+      for (final MapEntry(key: judul, value: teks) in isi.entries) {
+        await bukaTab(tester, judul);
+        // Area ketuk tab = InkWell TabBar di sekeliling pil.
+        final tombol = find.ancestor(of: tab(judul), matching: find.byType(InkWell)).first;
+        expect(tester.getSize(tombol).height, greaterThanOrEqualTo(48), reason: 'tab $judul');
+        dalamLebar(tester, tab(judul));
         await semuaTerlihat(tester, teks);
         await semuaTerlihat(tester, ['Perlu ditinjau']);
         cekTinggiKontrol(tester);

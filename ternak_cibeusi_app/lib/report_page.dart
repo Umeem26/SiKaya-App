@@ -1,5 +1,7 @@
 // Laporan lapis 1: Ringkasan berbahasa petani (UI-PLAN.md 3.4). Setiap angka
 // disertai satu kalimat penjelasan; istilah resmi hanya di "Lihat laporan resmi".
+// Periode (bulan ini, bulan lalu, tahun ini, pilih tanggal) berupa tab geser;
+// data tiap periode dimuat saat tabnya pertama tampil.
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -26,117 +28,157 @@ class ReportPage extends StatefulWidget {
   State<ReportPage> createState() => _ReportPageState();
 }
 
-class _ReportPageState extends State<ReportPage> {
+class _ReportPageState extends State<ReportPage> with SingleTickerProviderStateMixin {
   late final AccountingRepository _repo = widget.repo ?? AccountingRepository.instance;
-  PilihanPeriode _pilihan = PilihanPeriode.bulanIni;
+  static const _periode = PilihanPeriode.values;
+  late final TabController _tab = TabController(length: _periode.length, vsync: this);
+
+  /// Rentang "Pilih tanggal"; null = belum dipilih.
   DateTime? _dari, _sampai;
-  late Future<DataLaporan> _data = _muat();
+
+  /// Data per periode, dimuat saat tabnya pertama kali tampil.
+  final Map<PilihanPeriode, Future<DataLaporan>> _data = {};
 
   /// Tanggal tutup buku terakhir (lencana "Ditutup"); gagal dibaca = tanpa lencana.
   late final Future<DateTime?> _kunci = _repo.lockedUntil().then<DateTime?>((k) => k, onError: (_) => null);
 
   DateTime get _hariIni => widget.hariIni ?? DateTime.now();
+  PilihanPeriode get _pilihan => _periode[_tab.index];
+  bool _belumAdaTanggal(PilihanPeriode p) => p == PilihanPeriode.pilihTanggal && _dari == null;
 
-  Future<DataLaporan> _muat() async {
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  Future<DataLaporan> _dataUntuk(PilihanPeriode p) => _data[p] ??= _muat(p);
+
+  Future<DataLaporan> _muat(PilihanPeriode pilihan) async {
     final prefs = await SharedPreferences.getInstance();
-    final p = hitungPeriode(_pilihan, _hariIni, dari: _dari, sampai: _sampai);
+    final p = hitungPeriode(pilihan, _hariIni, dari: _dari, sampai: _sampai);
     return muatDataLaporan(_repo,
         dari: p.dari, sampai: p.sampai, namaUsaha: prefs.getString('owner_name') ?? 'Usaha Saya');
   }
 
-  Future<void> _pilihPeriode(PilihanPeriode p) async {
-    if (p == PilihanPeriode.pilihTanggal) {
-      final awal = hitungPeriode(_pilihan, _hariIni, dari: _dari, sampai: _sampai);
-      final r = await showDateRangePicker(
-        context: context,
-        firstDate: DateTime(2000),
-        lastDate: DateTime(2100),
-        initialDateRange: DateTimeRange(start: awal.dari, end: awal.sampai),
-        helpText: 'Pilih tanggal awal dan akhir',
-        saveText: 'Pilih',
-        cancelText: 'Batal',
-      );
-      if (r == null) return;
+  /// Kalender rentang untuk tab "Pilih tanggal" (awal: bulan ini, atau rentang terakhir).
+  Future<void> _pilihTanggal() async {
+    final awal = hitungPeriode(_dari == null ? PilihanPeriode.bulanIni : PilihanPeriode.pilihTanggal, _hariIni,
+        dari: _dari, sampai: _sampai);
+    final r = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDateRange: DateTimeRange(start: awal.dari, end: awal.sampai),
+      helpText: 'Pilih tanggal awal dan akhir',
+      saveText: 'Pilih',
+      cancelText: 'Batal',
+    );
+    if (r == null || !mounted) return;
+    setState(() {
       _dari = r.start;
       _sampai = r.end;
-    }
-    setState(() {
-      _pilihan = p;
-      _data = _muat();
+      _data.remove(PilihanPeriode.pilihTanggal);
     });
+  }
+
+  /// Ketuk tab "Pilih tanggal" yang belum punya rentang: langsung buka kalender.
+  void _ketukTab(int i) {
+    if (_belumAdaTanggal(_periode[i])) _pilihTanggal();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Laporan')),
-      body: FutureBuilder<DataLaporan>(
-        future: _data,
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return ListView(padding: const EdgeInsets.all(16), children: [
-              BannerPeringatan(
-                judul: 'Laporan tidak bisa dibuat',
-                isi: '${snap.error}',
-                nada: Nada.error,
-                aksi: 'Coba lagi',
-                ikonAksi: Icons.refresh_rounded,
-                onAksi: () => setState(() {
-                  _data = _muat();
-                }),
-              ),
-            ]);
-          }
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          return FutureBuilder<DateTime?>(future: _kunci, builder: (context, k) => _ringkasan(snap.data!, k.data));
-        },
-      ),
-      bottomNavigationBar: FutureBuilder<DataLaporan>(
-        future: _data,
-        builder: (context, snap) => SafeArea(
+      body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        TabGeser(controller: _tab, label: [for (final p in _periode) labelPeriode[p]!], onTap: _ketukTab),
+        Expanded(
+          child: TabBarView(
+            controller: _tab,
+            children: [for (final p in _periode) _halaman(p)],
+          ),
+        ),
+      ]),
+      // Tombol bawah mengikuti tab yang sedang tampil.
+      bottomNavigationBar: AnimatedBuilder(
+        animation: _tab,
+        builder: (context, _) => SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TombolUtama(
-              label: 'Lihat laporan resmi',
-              ikon: Icons.description_rounded,
-              onPressed: snap.data == null
-                  ? null
-                  : () async {
-                      final kunci = await _kunci;
-                      if (!context.mounted) return;
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                LaporanResmiPage(data: snap.data!, bagikan: widget.bagikan, ditutupSampai: kunci)),
-                      );
-                    },
-            ),
+            child: _belumAdaTanggal(_pilihan)
+                ? TombolUtama(label: 'Pilih tanggal', ikon: Icons.date_range_rounded, onPressed: _pilihTanggal)
+                : FutureBuilder<DataLaporan>(
+                    future: _dataUntuk(_pilihan),
+                    builder: (context, snap) => TombolUtama(
+                      label: 'Lihat laporan resmi',
+                      ikon: Icons.description_rounded,
+                      onPressed: snap.data == null
+                          ? null
+                          : () async {
+                              final kunci = await _kunci;
+                              if (!context.mounted) return;
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => LaporanResmiPage(
+                                        data: snap.data!, bagikan: widget.bagikan, ditutupSampai: kunci)),
+                              );
+                            },
+                    ),
+                  ),
           ),
         ),
       ),
     );
   }
 
-  Widget _ringkasan(DataLaporan d, DateTime? ditutupSampai) {
+  /// Isi satu tab periode.
+  Widget _halaman(PilihanPeriode p) {
+    if (_belumAdaTanggal(p)) {
+      return ListView(padding: const EdgeInsets.all(Jarak.s16), children: [
+        Card(
+          child: KosongRamah(
+            ikon: Icons.date_range_rounded,
+            judul: 'Pilih tanggal awal dan akhir',
+            isi: 'Lihat laporan untuk rentang tanggal mana saja, misalnya satu musim panen.',
+            aksi: 'Pilih tanggal',
+            ikonAksi: Icons.date_range_rounded,
+            onAksi: _pilihTanggal,
+          ),
+        ),
+      ]);
+    }
+    return FutureBuilder<DataLaporan>(
+      future: _dataUntuk(p),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return ListView(padding: const EdgeInsets.all(16), children: [
+            BannerPeringatan(
+              judul: 'Laporan tidak bisa dibuat',
+              isi: '${snap.error}',
+              nada: Nada.error,
+              aksi: 'Coba lagi',
+              ikonAksi: Icons.refresh_rounded,
+              onAksi: () => setState(() => _data.remove(p)),
+            ),
+          ]);
+        }
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        return FutureBuilder<DateTime?>(
+            future: _kunci, builder: (context, k) => _ringkasan(p, snap.data!, k.data));
+      },
+    );
+  }
+
+  Widget _ringkasan(PilihanPeriode p, DataLaporan d, DateTime? ditutupSampai) {
     final t = Theme.of(context).textTheme;
     final untung = d.untungRugi >= 0;
     const jarak = SizedBox(height: Jarak.s12);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s16, Jarak.s16, Jarak.s24),
+      key: PageStorageKey('laporan-${p.name}'),
+      padding: const EdgeInsets.fromLTRB(Jarak.s16, Jarak.s8, Jarak.s16, Jarak.s24),
       children: [
-        Text('Pilih waktu', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: Jarak.s8),
-        Wrap(spacing: Jarak.s8, runSpacing: Jarak.s8, children: [
-          for (final p in PilihanPeriode.values)
-            TombolPilihan(
-              label: labelPeriode[p]!,
-              terpilih: p == _pilihan,
-              ikon: Icons.calendar_month_rounded,
-              onPressed: () => _pilihPeriode(p),
-            ),
-        ]),
-        const SizedBox(height: Jarak.s16),
         // Kop ringkasan: nama usaha dan rentang waktu yang sedang dilihat.
         Card(
           child: Padding(
@@ -157,6 +199,10 @@ class _ReportPageState extends State<ReportPage> {
             ]),
           ),
         ),
+        if (p == PilihanPeriode.pilihTanggal) ...[
+          const SizedBox(height: Jarak.s8),
+          TombolKedua(label: 'Ubah tanggal', ikon: Icons.date_range_rounded, onPressed: _pilihTanggal),
+        ],
         if (d.r.peringatanTinjau case final w?) ...[
           jarak,
           BannerPeringatan(

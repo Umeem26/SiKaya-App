@@ -1,7 +1,7 @@
-// Laporan lapis 2: laporan resmi SAK EMKM (UI-PLAN.md 3.5). Pilihan Posisi
-// Keuangan, Laba Rugi, CaLK, Perubahan Ekuitas berupa tombol yang semuanya
-// terlihat (bukan tab yang harus digeser); "Ekspor PDF" membuat satu file berisi
-// semuanya lalu membuka lembar bagikan. Data = DataLaporan yang sama dengan Ringkasan.
+// Laporan lapis 2: laporan resmi SAK EMKM (UI-PLAN.md 3.5). Posisi Keuangan,
+// Laba Rugi, CaLK, Perubahan Ekuitas berupa tab geser (TabGeser; tepi memudar
+// bila ada tab di luar layar); "Ekspor PDF" membuat satu file berisi semuanya
+// lalu membuka lembar bagikan. Data = DataLaporan yang sama dengan Ringkasan.
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -32,9 +32,15 @@ class LaporanResmiPage extends StatefulWidget {
   State<LaporanResmiPage> createState() => _LaporanResmiPageState();
 }
 
-class _LaporanResmiPageState extends State<LaporanResmiPage> {
+class _LaporanResmiPageState extends State<LaporanResmiPage> with SingleTickerProviderStateMixin {
   bool _membuat = false;
-  int _tab = 0;
+  late final TabController _tab = TabController(length: judulTabResmi.length, vsync: this);
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
 
   Future<void> _ekspor() async {
     setState(() => _membuat = true);
@@ -51,26 +57,12 @@ class _LaporanResmiPageState extends State<LaporanResmiPage> {
   @override
   Widget build(BuildContext context) {
     final d = widget.data;
-    final t = Theme.of(context).textTheme;
-    final pilihan = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (var i = 0; i < judulTabResmi.length; i++)
-          TombolPilihan(
-            label: judulTabResmi[i],
-            terpilih: i == _tab,
-            ikon: Icons.description_rounded,
-            onPressed: () => setState(() => _tab = i),
-          ),
-      ],
-    );
-    final isi = switch (_tab) {
-      0 => _laporan(d.posisiKeuangan),
-      1 => _laporan(d.labaRugi),
-      2 => _calk(),
-      _ => _laporan(d.perubahanEkuitas),
-    };
+    final isi = [
+      _laporan(d.posisiKeuangan),
+      _laporan(d.labaRugi),
+      _calk(),
+      _laporan(d.perubahanEkuitas),
+    ];
     return Scaffold(
       appBar: AppBar(title: const Text('Laporan resmi')),
       bottomNavigationBar: SafeArea(
@@ -83,18 +75,22 @@ class _LaporanResmiPageState extends State<LaporanResmiPage> {
           ),
         ),
       ),
-      // Kunci per laporan: ganti laporan = mulai dari atas.
-      body: ListView(
-        key: ValueKey(_tab),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          Text('Pilih laporan', style: t.titleSmall!.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: Jarak.s8),
-          pilihan,
-          const SizedBox(height: Jarak.s16),
-          ...isi,
-        ],
-      ),
+      body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        TabGeser(controller: _tab, label: judulTabResmi),
+        Expanded(
+          child: TabBarView(
+            controller: _tab,
+            children: [
+              for (var i = 0; i < isi.length; i++)
+                ListView(
+                  key: PageStorageKey('resmi-$i'),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  children: isi[i],
+                ),
+            ],
+          ),
+        ),
+      ]),
     );
   }
 

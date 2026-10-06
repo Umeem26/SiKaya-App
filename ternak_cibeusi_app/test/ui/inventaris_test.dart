@@ -55,7 +55,7 @@ void main() {
       ]);
       cekTinggiKontrol(tester);
       await cekAreaSentuh(tester);
-      await ketuk(tester, tombolPilihan('Kandang, alat & lahan (1)'));
+      await ketuk(tester, find.descendant(of: find.byType(TabGeser), matching: find.text('Kandang, alat & lahan (1)')));
       await semuaTerlihat(tester, ['Lahan', '2 tumbak']);
       await ketuk(tester, find.text('Lahan'));
       expect(find.byType(DetailAssetPage), findsOneWidget);
